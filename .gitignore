@@ -1,3 +1,5 @@
 /.idea/
 /.env
+**/database/
+**/database.db
 **/__pycache__/

@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from app.db.models import NotificationType
 from typing import Optional, Union
 
@@ -11,11 +12,13 @@ def find_notification_type(db: Session, identifier: Union[int, str]) -> Optional
     :param identifier: Идентификатор типа уведомления (int - ID типа уведомления, str - название типа уведомления).
     :return: Тип уведомления | None.
     """
+    stmt = None
+
     if isinstance(identifier, int):
-        notification_type = db.query(NotificationType).get(identifier)
+        stmt = select(NotificationType).where(NotificationType.id == identifier)
     elif isinstance(identifier, str):
-        notification_type = db.query(NotificationType).filter(NotificationType.type == identifier).first()
+        stmt = select(NotificationType).where(NotificationType.type == identifier)
     else:
         raise TypeError(f"❌ Identifier must be of type int or str, received: {type(identifier).__name__}")
 
-    return notification_type
+    return db.execute(stmt).scalar_one_or_none()

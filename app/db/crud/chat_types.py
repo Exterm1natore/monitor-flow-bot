@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from app.db.models import ChatType
 from typing import Optional, Union
 
@@ -12,10 +13,11 @@ def find_chat_type(db: Session, identifier: Union[int, str]) -> Optional[ChatTyp
     :return: Тип чата | None.
     """
     if isinstance(identifier, int):
-        chat_type = db.query(ChatType).get(identifier)
+        stmt = select(ChatType).where(ChatType.id == identifier)
     elif isinstance(identifier, str):
-        chat_type = db.query(ChatType).filter(ChatType.type == identifier).first()
+        stmt = select(ChatType).where(ChatType.type == identifier)
     else:
-        raise TypeError(f"❌ Identifier must be of type int or str, received: {type(identifier).__name__}")
+        raise TypeError(f"❌ Invalid identifier type: expected int or str, received: {type(identifier).__name__}")
 
-    return chat_type
+    result = db.execute(stmt).scalar_one_or_none()
+    return result

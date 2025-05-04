@@ -1,9 +1,21 @@
 from typing import Optional
+from enum import Enum
 from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app.utils import text_format
-from app.core.bot_setup import Commands
 from app import db
+
+
+class Commands(Enum):
+    START = "start"
+    HELP = "help"
+    STATUS = "status"
+    MAN = "man"
+    STOP = "stop"
+    REGISTER = "register"
+    NOTIFY_ON = "notify_on"
+    NOTIFY_OFF = "notify_off"
+
 
 INFO_REQUEST_MESSAGE = ("❗️ Чтобы получить более подробную информацию о работе со мной и список доступных возможностей, "
                         f"отправьте мне команду <i>/{Commands.HELP.value}</i>.")

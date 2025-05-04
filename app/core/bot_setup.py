@@ -1,4 +1,3 @@
-from enum import Enum
 from bot.bot import Bot
 from bot.handler import StartCommandHandler, HelpCommandHandler, CommandHandler, UnknownCommandHandler
 from . import environment
@@ -6,17 +5,6 @@ from app import bot_handlers
 
 # Объект бота
 app = Bot(token=environment.BOT_TOKEN, name="monitor-flow-bot")
-
-
-class Commands(Enum):
-    START = "start"
-    HELP = "help"
-    STATUS = "status"
-    MAN = "man"
-    STOP = "stop"
-    REGISTER = "register"
-    NOTIFY_ON = "notify_on"
-    NOTIFY_OFF = "notify_off"
 
 
 def add_basic_commands_to_bot(bot: Bot):
@@ -33,7 +21,7 @@ def add_basic_commands_to_bot(bot: Bot):
     )
 
     bot.dispatcher.add_handler(
-        CommandHandler(command=Commands.STATUS, callback=bot_handlers.status_command)
+        CommandHandler(command=bot_handlers.Commands.STATUS.value, callback=bot_handlers.status_command)
     )
 
     # --- Unprocessed command ---

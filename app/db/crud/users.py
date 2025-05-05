@@ -16,7 +16,7 @@ def create_user(db: Session, chat: Chat, first_name: str, last_name: Optional[st
     :return: Новый пользователь.
     """
     if chat is None:
-        raise ValueError(f"❌ When creating a new user, the chat was of type: {type(chat).__name__}")
+        raise ValueError("❌ Chat must not be None when creating a user")
 
     user = User(chat_id=chat.id, first_name=first_name, last_name=last_name)
     db.add(user)
@@ -33,7 +33,7 @@ def find_user_by_id(db: Session, user_id: int) -> Optional[User]:
     :param user_id: ID пользователя.
     :return: Пользователь | None.
     """
-    return db.query(User).get(user_id)
+    return db.get(User, user_id)
 
 
 def find_user_by_chat(db: Session, chat: Chat) -> Optional[User]:
@@ -46,8 +46,8 @@ def find_user_by_chat(db: Session, chat: Chat) -> Optional[User]:
     """
     if chat is None:
         return None
-    else:
-        return db.query(User).filter(User.chat_id == chat.id).one_or_none()
+
+    return db.query(User).filter_by(chat_id=chat.id).one_or_none()
 
 
 def find_users_by_name(db: Session, first_name: Optional[str] = None, last_name: Optional[str] = None) -> List[User]:
@@ -60,8 +60,8 @@ def find_users_by_name(db: Session, first_name: Optional[str] = None, last_name:
     :return: Список найденных пользователей.
     """
     query = db.query(User)
-
     filters = []
+
     if first_name:
         filters.append(User.first_name.ilike(f"%{first_name}%"))
     if last_name:
@@ -81,20 +81,22 @@ def find_users_by_text_name(db: Session, text: str) -> List[User]:
     :param text: Строка с фрагментами имени и/или фамилии.
     :return: Список подходящих пользователей.
     """
-    if not text.strip():
+    text = text.strip()
+    if not text:
         return []
 
-    terms = [term.strip() for term in text.strip().split() if term.strip()]
+    terms = [term for term in text.split() if term]
     if not terms:
         return []
 
-    filters = []
-    for term in terms:
-        pattern = f"%{term}%"
-        filters.append(User.first_name.ilike(pattern))
-        filters.append(User.last_name.ilike(pattern))
+    filters = [
+        or_(
+            User.first_name.ilike(f"%{term}%"),
+            User.last_name.ilike(f"%{term}%")
+        ) for term in terms
+    ]
 
-    return db.query(User).filter(or_(*filters)).all()
+    return db.query(User).filter(and_(*filters)).all()
 
 
 def update_user(db: Session, user: User, first_name: Optional[str] = None, last_name: Optional[str] = None) -> User:
@@ -109,17 +111,15 @@ def update_user(db: Session, user: User, first_name: Optional[str] = None, last_
     """
     if first_name is not None:
         user.first_name = first_name
-
     if last_name is not None:
         user.last_name = last_name
 
     db.commit()
     db.refresh(user)
-
     return user
 
 
-def delete_user_by_object(db: Session, user: User, delete_chat: bool) -> bool:
+def delete_user(db: Session, user: User, delete_chat: bool) -> bool:
     """
     Удалить запись пользователя по основному объекту.
 
@@ -128,15 +128,14 @@ def delete_user_by_object(db: Session, user: User, delete_chat: bool) -> bool:
     :param delete_chat: Нужно ли при удалении пользователя удалять чат.
     :return: True, если запись была удалена, False если запись не существует.
     """
-    if user is None:
+    if not user:
         return False
 
     db.delete(user)
     db.commit()
 
-    # Если нужно удалить чат
     if delete_chat:
-        chats.delete_chat(db, user.chat_id)
+        chats.delete_chat_by_data(db, user.chat_id)
 
     return True
 
@@ -151,19 +150,7 @@ def delete_user_by_id(db: Session, user_id: int, delete_chat: bool) -> bool:
     :return: True, если запись была удалена, False если запись не найдена.
     """
     user = find_user_by_id(db, user_id)
-
-    if user is None:
-        # Чат не найден
-        return False
-
-    db.delete(user)
-    db.commit()
-
-    # Если нужно удалить чат
-    if delete_chat:
-        chats.delete_chat(db, user.chat_id)
-
-    return True
+    return delete_user(db, user, delete_chat)
 
 
 def delete_user_by_chat(db: Session, chat: Chat, delete_chat: bool) -> bool:
@@ -176,16 +163,4 @@ def delete_user_by_chat(db: Session, chat: Chat, delete_chat: bool) -> bool:
     :return: True, если запись была удалена, False если запись не найдена.
     """
     user = find_user_by_chat(db, chat)
-
-    if user is None:
-        # Чат не найден
-        return False
-
-    db.delete(user)
-    db.commit()
-
-    # Если нужно удалить чат
-    if delete_chat:
-        chats.delete_chat(db, user.chat_id)
-
-    return True
+    return delete_user(db, user, delete_chat)

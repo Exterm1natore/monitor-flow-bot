@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from app.db.models import Chat, ChatType
 from . import chat_types
 from typing import Optional, Union
@@ -15,17 +16,19 @@ def create_chat(db: Session, email: str, chat_type: Union[ChatType, int, str]) -
     """
     # Если тип чата не был найден
     if chat_type is None:
-        raise ValueError(f"❌ When creating a new Chat, the chat_type was of type: {type(chat_type).__name__}")
-    # Если тип чата объект
-    elif isinstance(chat_type, ChatType):
-        id_chat_type = chat_type.id
-    # Если тип чата индекс или название
-    elif isinstance(chat_type, int) or isinstance(chat_type, str):
-        id_chat_type = chat_types.find_chat_type(db, chat_type).id
-    else:
-        raise TypeError(f"❌ chat_type must be of type ChatType, int or str, received: {type(chat_type).__name__}")
+        raise ValueError(f"❌ chat_type is None (expected ChatType, int or str)")
 
-    chat = Chat(email=email, chat_type=id_chat_type)
+    if isinstance(chat_type, ChatType):
+        chat_type_id = chat_type.id
+    elif isinstance(chat_type, (int, str)):
+        found = chat_types.find_chat_type(db, chat_type)
+        if not found:
+            raise ValueError(f"❌ ChatType not found for identifier: {chat_type}")
+        chat_type_id = found.id
+    else:
+        raise TypeError(f"❌ chat_type must be ChatType, int, or str — received {type(chat_type).__name__}")
+
+    chat = Chat(email=email, chat_type=chat_type_id)
     db.add(chat)
     db.commit()
     db.refresh(chat)
@@ -40,17 +43,34 @@ def find_chat(db: Session, identifier: Union[int, str]) -> Optional[Chat]:
     :param identifier: Идентификатор чата (int - ID чата, str - email чата).
     :return: Чат | None.
     """
+    stmt = None
     if isinstance(identifier, int):
-        chat = db.query(Chat).get(identifier)
+        stmt = select(Chat).where(Chat.id == identifier)
     elif isinstance(identifier, str):
-        chat = db.query(Chat).filter(Chat.email == identifier).one_or_none()
+        stmt = select(Chat).where(Chat.email == identifier)
     else:
-        raise TypeError(f"❌ Identifier must be of type int or str, received: {type(identifier).__name__}")
+        raise TypeError(f"❌ Identifier must be int or str, received {type(identifier).__name__}")
 
-    return chat
+    return db.execute(stmt).scalar_one_or_none()
 
 
-def delete_chat(db: Session, identifier: Union[int, str]) -> bool:
+def delete_chat(db: Session, chat: Chat) -> bool:
+    """
+    Удалить чат по основному объекту.
+
+    :param db: Сессия базы данных.
+    :param chat: Объект чата на удаление.
+    :return: True, если запись была удалена, False если запись не существует.
+    """
+    if chat is None:
+        return False
+
+    db.delete(chat)
+    db.commit()
+    return True
+
+
+def delete_chat_by_data(db: Session, identifier: Union[int, str]) -> bool:
     """
     Удалить запись чата.
 
@@ -59,11 +79,4 @@ def delete_chat(db: Session, identifier: Union[int, str]) -> bool:
     :return: True, если запись была удалена, False если запись не найдена.
     """
     chat = find_chat(db, identifier)
-
-    if chat is None:
-        # Чат не найден
-        return False
-
-    db.delete(chat)
-    db.commit()
-    return True
+    return delete_chat(db, chat)

@@ -14,10 +14,8 @@ def create_administrator(db: Session, user: User, authorizer_id: str, granted_at
     :param granted_at: Время назначения.
     :return: Объект Administrator.
     """
-    # granted_by_chat = chats.find_chat(db, authorizer.chat_id)
-    #
-    # if granted_by_chat is None:
-    #     raise ValueError("❌No chat was found that provides access to administrators actions.")
+    if user is None:
+        raise ValueError("❌ The user has not been transferred.")
 
     admin = Administrator(user_id=user.id, granted_by=authorizer_id, granted_at=granted_at)
     db.add(admin)
@@ -36,8 +34,8 @@ def find_administrator_by_user(db: Session, user: User) -> Optional[Administrato
     """
     if user is None:
         return None
-    else:
-        return db.query(Administrator).filter(Administrator.user_id == user.id).one_or_none()
+
+    return db.query(Administrator).filter_by(user_id=user.id).one_or_none()
 
 
 def is_user_administrator(db: Session, user: User) -> bool:
@@ -49,11 +47,12 @@ def is_user_administrator(db: Session, user: User) -> bool:
     :return: True, если администратор, иначе False.
     """
     if user is None:
-        raise TypeError(f"❌The user was of type: {type(user).__name__}.")
-    return db.query(db.query(Administrator).filter(Administrator.user_id == user.id).exists()).scalar()
+        raise TypeError("❌ The user object has not been transferred.")
+
+    return db.query(db.query(Administrator).filter_by(user_id=user.id).exists()).scalar()
 
 
-def delete_administrator_by_object(db: Session, admin: Administrator) -> bool:
+def delete_administrator(db: Session, admin: Administrator) -> bool:
     """
     Удалить запись администратора по основному объекту.
 
@@ -78,11 +77,4 @@ def delete_administrator_by_user(db: Session, user: User) -> bool:
     :return: True, если запись была удалена, False если запись не найдена.
     """
     admin = find_administrator_by_user(db, user)
-
-    if admin is None:
-        # Администратор не найден
-        return False
-
-    db.delete(admin)
-    db.commit()
-    return True
+    return delete_administrator(db, admin)

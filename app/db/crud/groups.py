@@ -1,5 +1,6 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from app.db.models import Chat, Group
 from . import chats
 
@@ -14,7 +15,7 @@ def create_group(db: Session, chat: Chat, title: str) -> Group:
     :return: Новая группа.
     """
     if chat is None:
-        raise ValueError(f"❌ When creating a new group, the chat was of type: {type(chat).__name__}")
+        raise ValueError("❌ Chat must not be None when creating a group")
 
     group = Group(chat_id=chat.id, title=title)
     db.add(group)
@@ -31,7 +32,8 @@ def find_group_by_id(db: Session, group_id: int) -> Optional[Group]:
     :param group_id: ID группы.
     :return: Группа | None.
     """
-    return db.query(Group).get(group_id)
+    stmt = select(Group).where(Group.id == group_id)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def find_group_by_chat(db: Session, chat: Chat) -> Optional[Group]:
@@ -44,8 +46,9 @@ def find_group_by_chat(db: Session, chat: Chat) -> Optional[Group]:
     """
     if chat is None:
         return None
-    else:
-        return db.query(Group).filter(Group.chat_id == chat.id).one_or_none()
+
+    stmt = select(Group).where(Group.chat_id == chat.id)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def find_groups_by_title(db: Session, query: str, exact_match: bool = False) -> List[Group]:
@@ -60,15 +63,11 @@ def find_groups_by_title(db: Session, query: str, exact_match: bool = False) -> 
     if not query.strip():
         return []
 
-    query = query.strip()
+    cleaned_query = query.strip()
+    pattern = cleaned_query if exact_match else f"%{cleaned_query}%"
 
-    if exact_match:
-        # Точное совпадение, нечувствительное к регистру (сравниваем в нижнем регистре)
-        return db.query(Group).filter(Group.title.ilike(query)).all()
-    else:
-        # Частичное совпадение
-        pattern = f"%{query}%"
-        return db.query(Group).filter(Group.title.ilike(pattern)).all()
+    stmt = select(Group).where(Group.title.ilike(pattern))
+    return db.execute(stmt).scalars().all()
 
 
 def update_group(db: Session, group: Group, title: Optional[str] = None) -> Group:
@@ -85,11 +84,10 @@ def update_group(db: Session, group: Group, title: Optional[str] = None) -> Grou
 
     db.commit()
     db.refresh(group)
-
     return group
 
 
-def delete_group_by_object(db: Session, group: Group, delete_chat: bool) -> bool:
+def delete_group(db: Session, group: Group, delete_chat: bool) -> bool:
     """
     Удалить запись группы по основному объекту.
 
@@ -106,7 +104,7 @@ def delete_group_by_object(db: Session, group: Group, delete_chat: bool) -> bool
 
     # Если нужно удалить чат
     if delete_chat:
-        chats.delete_chat(db, group.chat_id)
+        chats.delete_chat_by_data(db, group.chat_id)
 
     return True
 
@@ -121,19 +119,7 @@ def delete_group_by_id(db: Session, group_id: int, delete_chat: bool) -> bool:
     :return: True, если запись была удалена, False если запись не найдена.
     """
     group = find_group_by_id(db, group_id)
-
-    if group is None:
-        # Чат не найден
-        return False
-
-    db.delete(group)
-    db.commit()
-
-    # Если нужно удалить чат
-    if delete_chat:
-        chats.delete_chat(db, group.chat_id)
-
-    return True
+    return delete_group(db, group, delete_chat)
 
 
 def delete_group_by_chat(db: Session, chat: Chat, delete_chat: bool):
@@ -146,16 +132,4 @@ def delete_group_by_chat(db: Session, chat: Chat, delete_chat: bool):
     :return: True, если запись была удалена, False если запись не найдена.
     """
     group = find_group_by_chat(db, chat)
-
-    if group is None:
-        # Группа не найдена
-        return False
-
-    db.delete(group)
-    db.commit()
-
-    # Если нужно удалить чат
-    if delete_chat:
-        chats.delete_chat(db, group.chat_id)
-
-    return True
+    return delete_group(db, group, delete_chat)

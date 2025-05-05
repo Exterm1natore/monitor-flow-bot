@@ -1,10 +1,14 @@
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.declarative import DeclarativeMeta
+from sqlalchemy.orm import Session, declarative_base
+from sqlalchemy import select
 from sqlalchemy import func
-from typing import List, Type
+from typing import List, Type, TypeVar
+
+# Базовый тип ORM моделей
+BaseModel = declarative_base()
+T = TypeVar("T", bound=BaseModel)
 
 
-def get_all_records(db: Session, model: Type[DeclarativeMeta]) -> List:
+def get_all_records(db: Session, model: Type[T]) -> List[T]:
     """
     Получить все записи из таблицы модели.
 
@@ -12,10 +16,11 @@ def get_all_records(db: Session, model: Type[DeclarativeMeta]) -> List:
     :param model: SQLAlchemy-модель таблицы.
     :return: Список записей (объекты модели).
     """
-    return db.query(model).all()
+    stmt = select(model)
+    return db.execute(stmt).scalars().all()
 
 
-def count_records(db: Session, model: Type) -> int:
+def count_records(db: Session, model: Type[T]) -> int:
     """
     Возвращает количество записей в заданной таблице.
 
@@ -23,4 +28,5 @@ def count_records(db: Session, model: Type) -> int:
     :param model: Класс ORM-модели таблицы.
     :return: Количество записей.
     """
-    return db.query(func.count()).select_from(model).scalar()
+    stmt = select(func.count()).select_from(model)
+    return db.execute(stmt).scalar_one()

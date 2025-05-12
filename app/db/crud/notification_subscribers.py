@@ -38,7 +38,7 @@ def add_notification_subscriber(db: Session,
 
 
 def find_notifications_subscriber_by_chat(db: Session,
-                                          chat: Chat,
+                                          chat: Optional[Chat],
                                           notification_type: Optional[NotificationType] = None
                                           ) -> List[NotificationSubscriber]:
     """
@@ -122,7 +122,7 @@ def find_notification_subscribers_by_date(db: Session,
     return db.execute(stmt).scalars().all()
 
 
-def delete_notifications_subscriber(db: Session, subscriber: NotificationSubscriber) -> bool:
+def delete_notifications_subscriber(db: Session, subscriber: Optional[NotificationSubscriber]) -> bool:
     """
     Удалить запись подписчика уведомлений по базовому объекту.
 

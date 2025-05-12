@@ -36,7 +36,7 @@ def find_group_by_id(db: Session, group_id: int) -> Optional[Group]:
     return db.execute(stmt).scalar_one_or_none()
 
 
-def find_group_by_chat(db: Session, chat: Chat) -> Optional[Group]:
+def find_group_by_chat(db: Session, chat: Optional[Chat]) -> Optional[Group]:
     """
     Найти группу по данным о чате.
 
@@ -87,7 +87,7 @@ def update_group(db: Session, group: Group, title: Optional[str] = None) -> Grou
     return group
 
 
-def delete_group(db: Session, group: Group, delete_chat: bool) -> bool:
+def delete_group(db: Session, group: Optional[Group], delete_chat: bool) -> bool:
     """
     Удалить запись группы по основному объекту.
 

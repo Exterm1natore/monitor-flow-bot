@@ -36,7 +36,7 @@ def find_user_by_id(db: Session, user_id: int) -> Optional[User]:
     return db.get(User, user_id)
 
 
-def find_user_by_chat(db: Session, chat: Chat) -> Optional[User]:
+def find_user_by_chat(db: Session, chat: Optional[Chat]) -> Optional[User]:
     """
     Найти пользователя по данным о чате.
 
@@ -119,7 +119,7 @@ def update_user(db: Session, user: User, first_name: Optional[str] = None, last_
     return user
 
 
-def delete_user(db: Session, user: User, delete_chat: bool) -> bool:
+def delete_user(db: Session, user: Optional[User], delete_chat: bool) -> bool:
     """
     Удалить запись пользователя по основному объекту.
 

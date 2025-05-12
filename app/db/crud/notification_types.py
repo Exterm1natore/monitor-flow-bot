@@ -34,7 +34,7 @@ def find_unsubscribed_notification_types(db: Session, chat: Chat) -> List[Notifi
     :return: Список типов уведомлений, на которые чат не подписан.
     """
     if chat is None:
-        return []
+        raise ValueError("❌ Chat is not defined when receiving a list of unsigned notification types.")
 
     # Под-запрос для получения всех ID типов, на которые чат уже подписан
     subquery = select(NotificationSubscriber.notification_type).where(NotificationSubscriber.chat_id == chat.id).subquery()

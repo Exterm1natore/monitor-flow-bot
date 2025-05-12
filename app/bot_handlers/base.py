@@ -4,8 +4,14 @@ from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app.utils import text_format
 from app import db
+from . import users, groups
+from .helpers import (
+    send_not_found_chat, send_notification_types, send_notification_types_access,
+    send_notification_description
+)
 from .constants import (
-    Commands, INFO_REQUEST_MESSAGE, NOTIFY_ON_REFERENCE, NOTIFY_OFF_REFERENCE
+    Commands, INFO_REQUEST_MESSAGE, NOTIFY_ON_REFERENCE, NOTIFY_OFF_REFERENCE,
+    HELP_BASE_MESSAGE
 )
 
 
@@ -39,31 +45,25 @@ def help_command(bot: Bot, event: Event):
     :param bot: VKTeams bot.
     :param event: Событие.
     """
-    output_text = "Этот бот информирует о событиях компьютерных инцидентов, произошедших в системе мониторинга.\n\n"
+    # Начальный текст
+    output_text = (f"{HELP_BASE_MESSAGE}\n\n"
+                   "<b>--- Список команд:</b>\n\n")
+
+    output_text += (
+        f"🔹 <i>/{Commands.HELP.value}</i> - справка и список команд;\n"
+        f"🔹 <i>/{Commands.REGISTER.value}</i> - регистрация в системе бота;\n"
+        f"🔹 <i>/{Commands.SIGN_OUT.value}</i> - удаление текущей регистрации;\n"
+        f"🔹 <i>/{Commands.STATUS.value}</i> - данные о регистрации, статусе и уведомлениях;\n"
+        f"🔹 <i>/{Commands.START.value}</i> - возобновить отправку сообщений ботом и приветственное сообщение;\n"
+        f"🔹 <i>/{Commands.NOTIFY_ON.value}</i> - подписка или просмотр данных уведомлений (отправляемых ботом);\n"
+        f"🔹 <i>/{Commands.NOTIFY_OFF.value}</i> - отписка или просмотр данных уведомлений (отправляемых ботом)."
+    )
 
     # Если приватный чат
     if event.chat_type == ChatType.PRIVATE.value:
-        output_text += "<b>--- Список доступных команд:</b>\n\n"
-
-        output_text += (f"🔹 <i>/{Commands.HELP.value}</i> - получить справку по работе с ботом и список доступных команд;\n"
-                        f"🔹 <i>/{Commands.MAN.value}</i> - получить мануал по работе с ботом, с описанием его действий;\n"
-                        f"🔹 <i>/{Commands.STATUS.value}</i> - получить данные о регистрации и статусе с системе бота;\n"
-                        f"🔹 <i>/{Commands.STOP.value}</i> - удалить себя из системы бота и запретить боту отправлять сообщения;\n"
-                        f"🔹 <i>/{Commands.START.value}</i> - разрешить боту отправлять сообщения (если было запрещено).")
-
-        with db.get_db_session() as session:
-            user = db.crud.find_user_by_chat(session, db.crud.find_chat(session, event.from_chat))
-            is_admin = db.crud.is_user_administrator(session, user) if user is not None else False
-
-        # Если пользователь является администратором
-        if is_admin:
-            output_text += "\n\n<b>--- Список команд администратора:</b>\n\n"
-
-            output_text += "🔹 <i>/</i>"
+        users.send_help_user(bot, event, output_text)
     else:
-        output_text += "<b>--- Список доступных команд:</b>\n\n"
-
-    bot.send_text(event.from_chat, output_text, parse_mode='HTML')
+        groups.send_help_group(bot, event, output_text)
 
 
 def status_command(bot: Bot, event: Event):
@@ -157,12 +157,10 @@ def register_command(bot: Bot, event: Event):
     # Если приватный тип чата
     if event.chat_type == ChatType.PRIVATE.value:
         # Зарегистрировать нового пользователя
-        from .users import register_user
-        register_user(bot, event)
+        users.register_user(bot, event)
     else:
         # Зарегистрировать новую группу
-        from .groups import register_group
-        register_group(bot, event)
+        groups.register_group(bot, event)
 
 
 def sign_out_command(bot: Bot, event: Event):
@@ -175,12 +173,10 @@ def sign_out_command(bot: Bot, event: Event):
     # Если приватный тип чата
     if event.chat_type == ChatType.PRIVATE.value:
         # Зарегистрировать нового пользователя
-        from .users import delete_user_registration
-        delete_user_registration(bot, event)
+        users.delete_user_registration(bot, event)
     else:
         # Зарегистрировать новую группу
-        from .groups import delete_group_registration
-        delete_group_registration(bot, event)
+        groups.delete_group_registration(bot, event)
 
 
 def notify_on_command(bot: Bot, event: Event):
@@ -210,11 +206,9 @@ def notify_on_command(bot: Bot, event: Event):
         else:
             # Если приватный тип чата
             if event.chat_type == ChatType.PRIVATE.value:
-                from .users import user_subscribe_notifications
-                user_subscribe_notifications(bot, event, text_items[1])
+                users.user_subscribe_notifications(bot, event, text_items[1])
             else:
-                from .groups import group_subscribe_notifications
-                group_subscribe_notifications(bot, event, text_items[1])
+                groups.group_subscribe_notifications(bot, event, text_items[1])
         return
 
     # Если 2 аргумента
@@ -255,11 +249,9 @@ def notify_off_command(bot: Bot, event: Event):
         else:
             # Если приватный тип чата
             if event.chat_type == ChatType.PRIVATE.value:
-                from .users import user_unsubscribe_notifications
-                user_unsubscribe_notifications(bot, event, text_items[1])
+                users.user_unsubscribe_notifications(bot, event, text_items[1])
             else:
-                from .groups import group_unsubscribe_notifications
-                group_unsubscribe_notifications(bot, event, text_items[1])
+                groups.group_unsubscribe_notifications(bot, event, text_items[1])
         return
 
     # Если 2 аргумента
@@ -271,82 +263,6 @@ def notify_off_command(bot: Bot, event: Event):
     output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
                    f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.NOTIFY_OFF.value}</i>")
     bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
-
-
-def send_notification_types(bot: Bot, chat_id: str):
-    """
-    Отправить список типов уведомлений в чат.
-
-    :param bot: VKTeams bot.
-    :param chat_id: Чат, в который отправляется список.
-    """
-    with db.get_db_session() as session:
-        types = db.crud.get_all_records(session, db.NotificationType)
-        names = [t.type for t in types]
-
-    output_text = ("<b>Список всех типов уведомлений:</b>\n"
-                   f"[{html.escape(', '.join(names))}]")
-
-    for part in text_format.split_text(output_text, 4096):
-        bot.send_text(chat_id, text=part, parse_mode='HTML')
-
-
-def send_notification_types_access(bot: Bot, chat_id: str, to_subscribe: bool):
-    """
-    Отправить список доступных типов уведомлений для подписки/отписки.
-
-    :param bot: VKTeams bot.
-    :param chat_id: Чат, в который отправляется список.
-    :param to_subscribe: Формировать список по условию есть/нет подписки.
-    """
-    with db.get_db_session() as session:
-        chat = db.crud.find_chat(session, chat_id)
-
-        # Если для подписки
-        if to_subscribe:
-            if chat is None:
-                types = db.crud.get_all_records(session, db.NotificationType)
-            else:
-                types = db.crud.find_unsubscribed_notification_types(session, chat)
-
-            names = [t.type for t in types]
-            output_text = ("<b>Список типов уведомлений, на которые нет подписки:</b>\n"
-                           f"{'[' + html.escape(', '.join(names)) + ']' if names else 'Нет доступных.'}")
-        else:
-            if chat is None:
-                output_text = ("⚠️ <b>Вы не зарегистрированы.</b>\n"
-                               "У вас нет ни одной подписки на уведомления.")
-            else:
-                names = [
-                    ns.notification_type_model.type
-                    for ns in chat.notification_subscribers
-                ]
-                output_text = ("<b>Список типов уведомлений, на которые есть подписка:</b>\n"
-                               f"{'[' + html.escape(', '.join(names)) + ']' if names else 'Нет доступных'}")
-
-    for part in text_format.split_text(output_text, 4096):
-        bot.send_text(chat_id, text=part, parse_mode='HTML')
-
-
-def send_notification_description(bot: Bot, chat_id: str, type_name: str):
-    """
-    Отправить описание заданного типа уведомления в чат.
-
-    :param bot: VKTeams bot.
-    :param chat_id: Чат, в который отправляется список.
-    :param type_name: Имя типа уведомления.
-    """
-    with db.get_db_session() as session:
-        notification_type = db.crud.find_notification_type(session, type_name)
-
-    if not notification_type:
-        output_text = f"⚠️ <b>Тип уведомления '<i>{html.escape(type_name)}</i>' не существует.</b>"
-    else:
-        output_text = (f"<b>Тип уведомления '<i>{html.escape(type_name)}</i>'</b>\n"
-                       f"Описание:\n\"{html.escape(notification_type.description)}\"")
-
-    for part in text_format.split_text(output_text, 4096):
-        bot.send_text(chat_id, text=part, parse_mode='HTML')
 
 
 def unprocessed_command(bot: Bot, event: Event):
@@ -361,24 +277,3 @@ def unprocessed_command(bot: Bot, event: Event):
                    f"{INFO_REQUEST_MESSAGE}")
 
     bot.send_text(event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode="HTML")
-
-
-def send_not_found_chat(bot: Bot, chat_id: str, chat_type: str):
-    """
-    Отправить сообщение, о том, что пользователь или чат не был найден в системе бота.
-
-    :param bot: VKTeams bot.
-    :param chat_id: ID чата, в которое направляется сообщение.
-    :param chat_type: Тип чата, который не был найден.
-    """
-    # Если приватный чат
-    if chat_type == ChatType.PRIVATE.value:
-        not_found_chat_text = ("⚠️ <b>Вас нет в моих списках зарегистрированных пользователей.</b>\n"
-                               "Чтобы начать работу, Вы должны быть зарегистрированы в моей системе.\n\n"
-                               f"{INFO_REQUEST_MESSAGE}")
-    else:
-        not_found_chat_text = ("⚠️ <b>Этого чата нет в моих списках зарегистрированных чатов</b>\n"
-                               "Чтобы начать работу, чат должен быть добавлен в мои списки.\n\n"
-                               f"{INFO_REQUEST_MESSAGE}")
-
-    bot.send_text(chat_id, not_found_chat_text, parse_mode='HTML')

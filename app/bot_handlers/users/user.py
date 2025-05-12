@@ -3,10 +3,40 @@ import html
 from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app import db
-from app.utils import date_and_time
-from app.bot_handlers.constants import (
-    INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE
+from app.utils import date_and_time, text_format
+from app.bot_handlers.helpers import (
+    send_not_found_chat
 )
+from app.bot_handlers.constants import (
+    Commands, INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE, HELP_BASE_MESSAGE
+)
+
+
+def send_help_user(bot: Bot, event: Event, initial_text: str = ""):
+    """
+    Отправить пользователю информационное сообщение по работе с ботом.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    :param initial_text: Начальный текст для отправки.
+    """
+    # Если нет начального текста добавляем стандартный
+    if not initial_text:
+        output_text = f"{HELP_BASE_MESSAGE}\n\n"
+    else:
+        output_text = f"{initial_text}\n\n"
+
+    output_text += "<b>--- Список команд пользователя:</b>\n\n"
+
+    output_text += (
+        f"🔹 <i>/{Commands.STOP.value}</i> - запрет отправки сообщений ботом и удаление регистрации;\n"
+        "(<b>Важно:</b> отправляя эту команду, бот больше не сможет вам ничего написать. "
+        f"Для того, чтобы бот смог возобновить отправку сообщений, необходимо отправить <i>/{Commands.START.value}</i>)."
+    )
+
+    # Отправляем текст по частям (не превышая лимит)
+    for part in text_format.split_text(output_text, 4096):
+        bot.send_text(event.from_chat, part, parse_mode='HTML')
 
 
 def register_user(bot: Bot, event: Event):
@@ -126,7 +156,6 @@ def user_unsubscribe_notifications(bot: Bot, event: Event, notification_type_nam
         chat = db.crud.find_chat(session, event.from_chat)
 
         if chat is None:
-            from app.bot_handlers.base import send_not_found_chat
             send_not_found_chat(bot, event.from_chat, event.chat_type)
             return
 

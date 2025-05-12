@@ -22,7 +22,7 @@ def start_command(bot: Bot, event: Event):
     :param bot: VKTeams bot.
     :param event: Событие.
     """
-    output_text = ("<b>Здравствуйте!\n"
+    output_text = ("<b>Здравствуйте!</b>\n"
                    "Моей основной задачей является сообщать о событиях компьютерных инцидентов, "
                    "произошедших в системе мониторинга.\n\n"
                    f"{INFO_REQUEST_MESSAGE}")

@@ -1,37 +1,25 @@
-from typing import Optional
-from enum import Enum
+from typing import Dict, Any
+import html
 from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app.utils import text_format
 from app import db
-
-
-class Commands(Enum):
-    START = "start"
-    HELP = "help"
-    STATUS = "status"
-    MAN = "man"
-    STOP = "stop"
-    REGISTER = "register"
-    NOTIFY_ON = "notify_on"
-    NOTIFY_OFF = "notify_off"
-
-
-INFO_REQUEST_MESSAGE = ("❗️ Чтобы получить более подробную информацию о работе со мной и список доступных возможностей, "
-                        f"отправьте мне команду <i>/{Commands.HELP.value}</i>.")
+from .constants import (
+    Commands, INFO_REQUEST_MESSAGE
+)
 
 
 def start_command(bot: Bot, event: Event):
     """
-    Обработка команды start.
+    Обработать команду start.
 
     :param bot: VKTeams bot.
     :param event: Событие.
     """
     output_text = ("<b>Здравствуйте!\n"
                    "Моей основной задачей является сообщать о событиях компьютерных инцидентов, "
-                   "произошедших в системе мониторинга.\n\n" +
-                   INFO_REQUEST_MESSAGE)
+                   "произошедших в системе мониторинга.\n\n"
+                   f"{INFO_REQUEST_MESSAGE}")
 
     bot.send_text(event.from_chat, output_text, parse_mode='HTML')
 
@@ -46,7 +34,7 @@ def start_command(bot: Bot, event: Event):
 
 def help_command(bot: Bot, event: Event):
     """
-    Обработка команды help.
+    Обработать команду help.
 
     :param bot: VKTeams bot.
     :param event: Событие.
@@ -72,7 +60,6 @@ def help_command(bot: Bot, event: Event):
             output_text += "\n\n<b>--- Список команд администратора:</b>\n\n"
 
             output_text += "🔹 <i>/</i>"
-
     else:
         output_text += "<b>--- Список доступных команд:</b>\n\n"
 
@@ -81,109 +68,95 @@ def help_command(bot: Bot, event: Event):
 
 def status_command(bot: Bot, event: Event):
     """
-    Обработка команды status.
+    Обработать команду status.
 
     :param bot: VKTeams bot.
     :param event: Событие.
     """
+    # Собираем необходимые данные внутри одной сессии
+    payload: Dict[str, Any] = {}
     with db.get_db_session() as session:
         chat = db.crud.find_chat(session, event.from_chat)
-
-    # Если приватный чат
-    if event.chat_type == ChatType.PRIVATE.value:
-        with db.get_db_session() as session:
-            user = db.crud.find_user_by_chat(session, chat)
-            # Если пользователь существует
-            if user is not None:
-                # Обновляем данные пользователя в базе данных до актуальных
-                first_name: str = event.data['from']['firstName']
-                last_name: Optional[str] = event.data['from']['lastName'] if event.data['from']['lastName'] else None
-                db.crud.update_user(session, user, first_name, last_name)
-
-        # Если пользователь не найден
-        if user is None:
+        if chat is None:
             send_not_found_chat(bot, event.from_chat, event.chat_type)
             return
+
+        # Определяем, это пользователь или группа, и обновляем данные
+        if chat.user is not None:
+            # Обновляем поля пользователя
+            first_name = event.data['from']['firstName']
+            last_name = event.data['from'].get('lastName') or None
+            db.crud.update_user(session, chat.user, first_name, last_name)
+
+            payload.update({
+                'title': 'Статус пользователя',
+                'email': chat.email,
+                'name_label': 'Имя',
+                'name': chat.user.first_name,
+                'surname_label': 'Фамилия',
+                'surname': chat.user.last_name,
+                'role': 'Администратор' if chat.user.administrator else None
+            })
+        elif chat.group is not None:
+            # Обновляем название группы
+            title = event.data['chat']['title']
+            db.crud.update_group(session, chat.group, title)
+
+            payload.update({
+                'title': 'Статус группы',
+                'name_label': 'Название',
+                'name': chat.group.title,
+                'role': None
+            })
         else:
-            # Проверяем администратор ли пользователь и на какие уведомления подписан
-            with db.get_db_session() as session:
-                is_admin = db.crud.is_user_administrator(session, user)
-                subscriber_notifications = db.crud.find_notifications_subscriber_by_chat(session, chat)
+            send_not_found_chat(bot, event.from_chat, event.chat_type)
+            return
 
-            output_text = "📍 <b>Статус пользователя</b>"
+        # Получаем подписки
+        payload['subscriptions'] = [
+            sub.notification_type_model.type
+            for sub in chat.notification_subscribers
+        ]
 
-            output_text += f"\n\n🔹 email: <i>{chat.email}</i>"
+    # Формируем текст ответа
+    lines = [f"📍 <b>{payload['title']}</b>\n"]
 
-            output_text += f"\n🔹 Имя: <i>{user.first_name}</i>"
+    if 'email' in payload:
+        lines.append(f"\n🔹 email: <i>{html.escape(payload['email'])}</i>")
 
-            output_text += "\n🔹 Фамилия: " + (f"<i>{user.last_name}</i>" if user.last_name is not None else "")
+    lines.append(f"\n🔹 {payload['name_label']}: <i>{html.escape(payload['name'])}</i>")
 
-            output_text += "\n🔹 Роль: " + ("<i>Администратор</i>" if is_admin else "<i>Пользователь</i>")
+    if payload.get('surname_label'):
+        surname = payload.get('surname') or ''
+        lines.append(f"\n🔹 {payload['surname_label']}: <i>{html.escape(surname)}</i>")
 
-            output_text += "\n🔹 Подписки на уведомления: "
+    if payload.get('role'):
+        lines.append(f"\n🔹 Роль: <i>{html.escape(payload['role'])}</i>")
 
-            # Если нет подписок:
-            if not subscriber_notifications:
-                output_text += "❌"
-            else:
-                # Список название подписок на уведомления
-                types = [
-                    db.crud.find_notification_type(session, item.notification_type).type
-                    for item in subscriber_notifications
-                ]
-
-                output_text += "[" + ", ".join(types) + "]"
-
+    lines.append("\n🔹 Подписки на уведомления: ")
+    if not payload['subscriptions']:
+        lines.append("❌")
     else:
-        with db.get_db_session() as session:
-            group = db.crud.find_group_by_chat(session, chat)
-            # Если группа существует
-            if group is not None:
-                # Обновляем данные группы в базе данных до актуальных
-                title: str = event.data['chat']['title']
-                db.crud.update_group(session, group, title)
+        subs = ", ".join(payload['subscriptions'])
+        lines.append(f"[{html.escape(subs)}]")
 
-        # Если группа не найден
-        if group is None:
-            send_not_found_chat(bot, event.from_chat, event.chat_type)
-            return
+    output_text = ''.join(lines)
 
-        with db.get_db_session() as session:
-            subscriber_notifications = db.crud.find_notifications_subscriber_by_chat(session, chat)
-
-        output_text = "📍 <b>Статус группы</b>"
-
-        output_text += f"\n\n🔹 Название: <i>{group.title}</i>"
-
-        output_text += "\n🔹 Подписки на уведомления: "
-
-        # Если нет подписок:
-        if not subscriber_notifications:
-            output_text += "❌"
-        else:
-            # Список название подписок на уведомления
-            types = [
-                db.crud.find_notification_type(session, item.notification_type).type
-                for item in subscriber_notifications
-            ]
-
-            output_text += "[" + ", ".join(types) + "]"
-
-    # Отправляем сообщение
-    for message_text in text_format.split_text(output_text, 4096):
-        bot.send_text(event.from_chat, message_text, parse_mode='HTML')
+    # Отправляем текст по частям (не превышая лимит)
+    for part in text_format.split_text(output_text, 4096):
+        bot.send_text(event.from_chat, part, parse_mode='HTML')
 
 
 def unprocessed_command(bot: Bot, event: Event):
     """
-    Обработка сообщений, которые не учитываются в боте.
+    Обработать сообщения, которые не учитываются в боте.
 
     :param bot: VKTeams bot.
     :param event: Событие.
     """
     output_text = ("🍃 <i>Шелест листьев</i> 🍃\n\n"
-                   "Я не знаю что с этим делать\n\n" +
-                   INFO_REQUEST_MESSAGE)
+                   "Я не знаю что с этим делать\n\n"
+                   f"{INFO_REQUEST_MESSAGE}")
 
     bot.send_text(event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode="HTML")
 
@@ -199,12 +172,11 @@ def send_not_found_chat(bot: Bot, chat_id: str, chat_type: str):
     # Если приватный чат
     if chat_type == ChatType.PRIVATE.value:
         not_found_chat_text = ("⚠️ <b>Вас нет в моих списках зарегистрированных пользователей.</b>\n"
-                               "Чтобы начать работу, Вы должны быть зарегистрированы в моей системе.\n\n" +
-                               INFO_REQUEST_MESSAGE)
-
+                               "Чтобы начать работу, Вы должны быть зарегистрированы в моей системе.\n\n"
+                               f"{INFO_REQUEST_MESSAGE}")
     else:
         not_found_chat_text = ("⚠️ <b>Этого чата нет в моих списках зарегистрированных чатов</b>\n"
-                               "Чтобы начать работу, чат должен быть добавлен в мои списки.\n\n" +
-                               INFO_REQUEST_MESSAGE)
+                               "Чтобы начать работу, чат должен быть добавлен в мои списки.\n\n"
+                               f"{INFO_REQUEST_MESSAGE}")
 
     bot.send_text(chat_id, not_found_chat_text, parse_mode='HTML')

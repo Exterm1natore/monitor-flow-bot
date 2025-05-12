@@ -5,7 +5,7 @@ from bot.constant import ChatType
 from app.utils import text_format
 from app import db
 from .constants import (
-    Commands, INFO_REQUEST_MESSAGE
+    Commands, INFO_REQUEST_MESSAGE, NOTIFY_ON_REFERENCE, NOTIFY_OFF_REFERENCE
 )
 
 
@@ -145,6 +145,208 @@ def status_command(bot: Bot, event: Event):
     # Отправляем текст по частям (не превышая лимит)
     for part in text_format.split_text(output_text, 4096):
         bot.send_text(event.from_chat, part, parse_mode='HTML')
+
+
+def register_command(bot: Bot, event: Event):
+    """
+    Обработать команду register.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    # Если приватный тип чата
+    if event.chat_type == ChatType.PRIVATE.value:
+        # Зарегистрировать нового пользователя
+        from .users import register_user
+        register_user(bot, event)
+    else:
+        # Зарегистрировать новую группу
+        from .groups import register_group
+        register_group(bot, event)
+
+
+def sign_out_command(bot: Bot, event: Event):
+    """
+    Обработать команду sign_out.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    # Если приватный тип чата
+    if event.chat_type == ChatType.PRIVATE.value:
+        # Зарегистрировать нового пользователя
+        from .users import delete_user_registration
+        delete_user_registration(bot, event)
+    else:
+        # Зарегистрировать новую группу
+        from .groups import delete_group_registration
+        delete_group_registration(bot, event)
+
+
+def notify_on_command(bot: Bot, event: Event):
+    """
+    Обработать команду notify_on.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    text_items = text_format.normalize_whitespace(event.text).split()
+    if not text_items:
+        output_text = "⛔️ <b>Команда уведомлений не распознана.</b>"
+        bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+        return
+
+    # Если нет аргументов в команде
+    if len(text_items) == 1:
+        bot.send_text(event.from_chat, text=NOTIFY_ON_REFERENCE, parse_mode='HTML')
+        return
+
+    # Если 1 аргумент в команде
+    if len(text_items) == 2:
+        if text_items[1] == '-list':
+            send_notification_types(bot, event.from_chat)
+        elif text_items[1] == '-access':
+            send_notification_types_access(bot, event.from_chat, True)
+        else:
+            # Если приватный тип чата
+            if event.chat_type == ChatType.PRIVATE.value:
+                from .users import user_subscribe_notifications
+                user_subscribe_notifications(bot, event, text_items[1])
+            else:
+                from .groups import group_subscribe_notifications
+                group_subscribe_notifications(bot, event, text_items[1])
+        return
+
+    # Если 2 аргумента
+    if len(text_items) == 3 and text_items[2] == '-desc':
+        send_notification_description(bot, event.from_chat, text_items[1])
+        return
+
+    # В остальных случаях выводим, что формат команды неверный
+    output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
+                   f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.NOTIFY_ON.value}</i>")
+    bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+
+
+def notify_off_command(bot: Bot, event: Event):
+    """
+    Обработать команду notify_off.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    text_items = text_format.normalize_whitespace(event.text).split()
+    if not text_items:
+        output_text = "⛔️ <b>Команда уведомлений не распознана.</b>"
+        bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+        return
+
+    # Если нет аргументов в команде
+    if len(text_items) == 1:
+        bot.send_text(event.from_chat, text=NOTIFY_OFF_REFERENCE, parse_mode='HTML')
+        return
+
+    # Если 1 аргумент в команде
+    if len(text_items) == 2:
+        if text_items[1] == '-list':
+            send_notification_types(bot, event.from_chat)
+        elif text_items[1] == '-access':
+            send_notification_types_access(bot, event.from_chat, False)
+        else:
+            # Если приватный тип чата
+            if event.chat_type == ChatType.PRIVATE.value:
+                from .users import user_unsubscribe_notifications
+                user_unsubscribe_notifications(bot, event, text_items[1])
+            else:
+                from .groups import group_unsubscribe_notifications
+                group_unsubscribe_notifications(bot, event, text_items[1])
+        return
+
+    # Если 2 аргумента
+    if len(text_items) == 3 and text_items[2] == '-desc':
+        send_notification_description(bot, event.from_chat, text_items[1])
+        return
+
+    # В остальных случаях выводим, что формат команды неверный
+    output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
+                   f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.NOTIFY_OFF.value}</i>")
+    bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+
+
+def send_notification_types(bot: Bot, chat_id: str):
+    """
+    Отправить список типов уведомлений в чат.
+
+    :param bot: VKTeams bot.
+    :param chat_id: Чат, в который отправляется список.
+    """
+    with db.get_db_session() as session:
+        types = db.crud.get_all_records(session, db.NotificationType)
+        names = [t.type for t in types]
+
+    output_text = ("<b>Список всех типов уведомлений:</b>\n"
+                   f"[{html.escape(', '.join(names))}]")
+
+    for part in text_format.split_text(output_text, 4096):
+        bot.send_text(chat_id, text=part, parse_mode='HTML')
+
+
+def send_notification_types_access(bot: Bot, chat_id: str, to_subscribe: bool):
+    """
+    Отправить список доступных типов уведомлений для подписки/отписки.
+
+    :param bot: VKTeams bot.
+    :param chat_id: Чат, в который отправляется список.
+    :param to_subscribe: Формировать список по условию есть/нет подписки.
+    """
+    with db.get_db_session() as session:
+        chat = db.crud.find_chat(session, chat_id)
+
+        # Если для подписки
+        if to_subscribe:
+            if chat is None:
+                types = db.crud.get_all_records(session, db.NotificationType)
+            else:
+                types = db.crud.find_unsubscribed_notification_types(session, chat)
+
+            names = [t.type for t in types]
+            output_text = ("<b>Список типов уведомлений, на которые нет подписки:</b>\n"
+                           f"{'[' + html.escape(', '.join(names)) + ']' if names else 'Нет доступных.'}")
+        else:
+            if chat is None:
+                output_text = ("⚠️ <b>Вы не зарегистрированы.</b>\n"
+                               "У вас нет ни одной подписки на уведомления.")
+            else:
+                names = [
+                    ns.notification_type_model.type
+                    for ns in chat.notification_subscribers
+                ]
+                output_text = ("<b>Список типов уведомлений, на которые есть подписка:</b>\n"
+                               f"{'[' + html.escape(', '.join(names)) + ']' if names else 'Нет доступных'}")
+
+    for part in text_format.split_text(output_text, 4096):
+        bot.send_text(chat_id, text=part, parse_mode='HTML')
+
+
+def send_notification_description(bot: Bot, chat_id: str, type_name: str):
+    """
+    Отправить описание заданного типа уведомления в чат.
+
+    :param bot: VKTeams bot.
+    :param chat_id: Чат, в который отправляется список.
+    :param type_name: Имя типа уведомления.
+    """
+    with db.get_db_session() as session:
+        notification_type = db.crud.find_notification_type(session, type_name)
+
+    if not notification_type:
+        output_text = f"⚠️ <b>Тип уведомления '<i>{html.escape(type_name)}</i>' не существует.</b>"
+    else:
+        output_text = (f"<b>Тип уведомления '<i>{html.escape(type_name)}</i>'</b>\n"
+                       f"Описание:\n\"{html.escape(notification_type.description)}\"")
+
+    for part in text_format.split_text(output_text, 4096):
+        bot.send_text(chat_id, text=part, parse_mode='HTML')
 
 
 def unprocessed_command(bot: Bot, event: Event):

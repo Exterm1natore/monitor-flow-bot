@@ -1,4 +1,5 @@
 from typing import List
+import re
 
 
 def split_text(text: str, max_length: int) -> List[str]:
@@ -24,3 +25,13 @@ def split_text(text: str, max_length: int) -> List[str]:
         parts.append(text)
 
     return parts
+
+
+def normalize_whitespace(text: str) -> str:
+    """
+    Удаляет все лишние пробельные символы (в начале и конце, а также дублирующиеся).
+
+    :param text: Входящий текст.
+    :return: Форматированный текст.
+    """
+    return ' '.join(re.split(r'\s+', text.strip()))

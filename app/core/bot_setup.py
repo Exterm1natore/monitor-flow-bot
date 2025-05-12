@@ -21,7 +21,24 @@ def add_basic_commands_to_bot(bot: Bot):
     )
 
     bot.dispatcher.add_handler(
+        CommandHandler(command=bot_handlers.Commands.REGISTER.value, callback=bot_handlers.register_command)
+    )
+
+    bot.dispatcher.add_handler(
+        CommandHandler(command=[bot_handlers.Commands.STOP.value, bot_handlers.Commands.SIGN_OUT.value],
+                       callback=bot_handlers.sign_out_command)
+    )
+
+    bot.dispatcher.add_handler(
         CommandHandler(command=bot_handlers.Commands.STATUS.value, callback=bot_handlers.status_command)
+    )
+
+    bot.dispatcher.add_handler(
+        CommandHandler(command=bot_handlers.Commands.NOTIFY_ON.value, callback=bot_handlers.notify_on_command)
+    )
+
+    bot.dispatcher.add_handler(
+        CommandHandler(command=bot_handlers.Commands.NOTIFY_OFF.value, callback=bot_handlers.notify_off_command)
     )
 
     # --- Unprocessed command ---

@@ -54,7 +54,7 @@ def find_chat(db: Session, identifier: Union[int, str]) -> Optional[Chat]:
     return db.execute(stmt).scalar_one_or_none()
 
 
-def delete_chat(db: Session, chat: Chat) -> bool:
+def delete_chat(db: Session, chat: Optional[Chat]) -> bool:
     """
     Удалить чат по основному объекту.
 

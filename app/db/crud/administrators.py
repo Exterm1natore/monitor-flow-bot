@@ -24,7 +24,7 @@ def create_administrator(db: Session, user: User, authorizer_id: str, granted_at
     return admin
 
 
-def find_administrator_by_user(db: Session, user: User) -> Optional[Administrator]:
+def find_administrator_by_user(db: Session, user: Optional[User]) -> Optional[Administrator]:
     """
     Получить запись администратора по объекту пользователя.
 

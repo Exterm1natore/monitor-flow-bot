@@ -1,15 +1,16 @@
 from bot.bot import Bot
 from bot.handler import StartCommandHandler, HelpCommandHandler, CommandHandler, UnknownCommandHandler
-from . import environment
+from bot.constant import ChatType
+from . import environment, bot_extensions
 from app import bot_handlers
 
 # Объект бота
 app = Bot(token=environment.BOT_TOKEN, name="monitor-flow-bot")
 
 
-def add_basic_commands_to_bot(bot: Bot):
+def add_general_commands_to_bot(bot: Bot):
     """
-    Добавить базовые команды боту.
+    Добавить общие команды боту.
     :param bot: VKTeams bot.
     """
     bot.dispatcher.add_handler(
@@ -25,8 +26,7 @@ def add_basic_commands_to_bot(bot: Bot):
     )
 
     bot.dispatcher.add_handler(
-        CommandHandler(command=[bot_handlers.Commands.STOP.value, bot_handlers.Commands.SIGN_OUT.value],
-                       callback=bot_handlers.sign_out_command)
+        CommandHandler(command=bot_handlers.Commands.SIGN_OUT.value, callback=bot_handlers.sign_out_command)
     )
 
     bot.dispatcher.add_handler(
@@ -45,3 +45,17 @@ def add_basic_commands_to_bot(bot: Bot):
     bot.dispatcher.add_handler(
         UnknownCommandHandler(callback=bot_handlers.unprocessed_command)
     )
+
+
+def add_user_command_to_bot(bot: Bot):
+    """
+    Добавить команды пользователя боту.
+
+    :param bot: VKTeams bot.
+    """
+    main_filter = bot_extensions.filter.ChatTypeFilter(ChatType.PRIVATE.value)
+
+    bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.STOP.value, filters=main_filter, callback=bot_handlers.sign_out_command
+    ))
+

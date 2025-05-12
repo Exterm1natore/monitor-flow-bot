@@ -3,3 +3,5 @@
 **/database/
 **/database.db
 **/__pycache__/
+**/logs/
+*.log

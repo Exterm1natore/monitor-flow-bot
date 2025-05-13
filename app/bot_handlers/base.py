@@ -7,7 +7,7 @@ from app import db
 from . import users, groups
 from .helpers import (
     send_not_found_chat, send_notification_types, send_notification_types_access,
-    send_notification_description
+    send_notification_description, catch_and_log_exceptions
 )
 from .constants import (
     Commands, INFO_REQUEST_MESSAGE, NOTIFY_ON_REFERENCE, NOTIFY_OFF_REFERENCE,
@@ -15,6 +15,7 @@ from .constants import (
 )
 
 
+@catch_and_log_exceptions
 def start_command(bot: Bot, event: Event):
     """
     Обработать команду start.
@@ -66,6 +67,7 @@ def help_command(bot: Bot, event: Event):
         groups.send_help_group(bot, event, output_text)
 
 
+@catch_and_log_exceptions
 def status_command(bot: Bot, event: Event):
     """
     Обработать команду status.
@@ -179,6 +181,7 @@ def sign_out_command(bot: Bot, event: Event):
         groups.delete_group_registration(bot, event)
 
 
+@catch_and_log_exceptions
 def notify_on_command(bot: Bot, event: Event):
     """
     Обработать команду notify_on.
@@ -222,6 +225,7 @@ def notify_on_command(bot: Bot, event: Event):
     bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 def notify_off_command(bot: Bot, event: Event):
     """
     Обработать команду notify_off.
@@ -265,6 +269,7 @@ def notify_off_command(bot: Bot, event: Event):
     bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 def unprocessed_command(bot: Bot, event: Event):
     """
     Обработать сообщения, которые не учитываются в боте.

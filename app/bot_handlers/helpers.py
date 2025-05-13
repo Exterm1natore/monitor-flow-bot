@@ -1,6 +1,10 @@
-from bot.bot import Bot
+import inspect
+from typing import get_type_hints, Optional
+from functools import wraps
+from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app import db
+import logging
 import html
 from app.utils import text_format
 from .constants import (
@@ -8,7 +12,54 @@ from .constants import (
 )
 
 
+# -------------------- Декораторы --------------------
+
+
+def catch_and_log_exceptions(func):
+    """
+    Декоратор для обработки исключений в функции, логирования и отправки ошибок.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            module = inspect.getmodule(func)
+            logger = logging.getLogger(module.__name__ if module else __name__)
+            logger.exception(f"Error in {func.__name__}: {str(e)}")
+
+            # Проверяем, есть ли хотя бы два позиционных аргумента
+            bot: Optional[Bot] = None
+            event: Optional[Event] = None
+
+            # Проверка в позиционных аргументах
+            if len(args) >= 2:
+                if isinstance(args[0], Bot) and isinstance(args[1], Event):
+                    bot = args[0]
+                    event = args[1]
+
+            # Проверка в именованных аргументах
+            if 'bot' in kwargs and isinstance(kwargs['bot'], Bot):
+                bot = kwargs['bot']
+            if 'event' in kwargs and isinstance(kwargs['event'], Event):
+                event = kwargs['event']
+
+            # Если оба объекта найдены — отправляем сообщение
+            if bot and event:
+                exception_text = "❌ <b>Произошла непредвиденная ошибка.</b>"
+                bot.send_text(
+                    chat_id=event.from_chat,
+                    text=exception_text,
+                    reply_msg_id=event.msgId,
+                    parse_mode='HTML'
+                )
+            return
+
+    return wrapper
+
+
 # -------------------- Вспомогательные функции -------
+
 
 def send_not_found_chat(bot: Bot, chat_id: str, chat_type: str):
     """

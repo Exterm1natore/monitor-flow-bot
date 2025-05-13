@@ -1,4 +1,8 @@
-from app.core import bot_setup
+from app.core import bot_setup, logging_setup
+
+
+# --- Enable logging
+logging_setup.enable_logging("ERROR")
 
 
 if __name__ == "__main__":

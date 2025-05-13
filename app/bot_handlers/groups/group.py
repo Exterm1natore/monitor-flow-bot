@@ -5,13 +5,14 @@ from . import helpers
 from app import db
 from app.utils import date_and_time, text_format
 from app.bot_handlers.helpers import (
-    send_not_found_chat
+    send_not_found_chat, catch_and_log_exceptions
 )
 from app.bot_handlers.constants import (
     INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE, HELP_BASE_MESSAGE
 )
 
 
+@catch_and_log_exceptions
 def send_help_group(bot: Bot, event: Event, initial_text: str = ""):
     """
     Отправить в группу информационное сообщение по работе с ботом.
@@ -31,7 +32,7 @@ def send_help_group(bot: Bot, event: Event, initial_text: str = ""):
         bot.send_text(event.from_chat, part, parse_mode='HTML')
 
 
-
+@catch_and_log_exceptions
 @helpers.group_administrator_access
 def register_group(bot: Bot, event: Event):
     """
@@ -67,6 +68,7 @@ def register_group(bot: Bot, event: Event):
     bot.send_text(event.from_chat, output_text, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 @helpers.group_administrator_access
 def delete_group_registration(bot: Bot, event: Event):
     """
@@ -99,6 +101,7 @@ def delete_group_registration(bot: Bot, event: Event):
     bot.send_text(event.from_chat, output_text, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 @helpers.group_administrator_access
 def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name: str):
     """
@@ -130,6 +133,7 @@ def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name
     bot.send_text(event.from_chat, text=output_text, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 @helpers.group_administrator_access
 def group_unsubscribe_notifications(bot: Bot, event: Event, notification_type_name: str):
     """

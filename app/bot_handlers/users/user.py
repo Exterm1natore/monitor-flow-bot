@@ -5,13 +5,14 @@ from bot.constant import ChatType
 from app import db
 from app.utils import date_and_time, text_format
 from app.bot_handlers.helpers import (
-    send_not_found_chat
+    send_not_found_chat, catch_and_log_exceptions
 )
 from app.bot_handlers.constants import (
     Commands, INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE, HELP_BASE_MESSAGE
 )
 
 
+@catch_and_log_exceptions
 def send_help_user(bot: Bot, event: Event, initial_text: str = ""):
     """
     Отправить пользователю информационное сообщение по работе с ботом.
@@ -39,6 +40,7 @@ def send_help_user(bot: Bot, event: Event, initial_text: str = ""):
         bot.send_text(event.from_chat, part, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 def register_user(bot: Bot, event: Event):
     """
     Зарегистрировать нового пользователя, если не зарегистрирован.
@@ -80,6 +82,7 @@ def register_user(bot: Bot, event: Event):
     bot.send_text(event.from_chat, output_text, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 def delete_user_registration(bot: Bot, event: Event):
     """
     Удалить регистрацию пользователя, если зарегистрирован.
@@ -111,6 +114,7 @@ def delete_user_registration(bot: Bot, event: Event):
     bot.send_text(event.from_chat, output_text, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name: str):
     """
     Подписаться пользователю на уведомления заданного типа.
@@ -144,6 +148,7 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
     bot.send_text(event.from_chat, text=output_text, parse_mode='HTML')
 
 
+@catch_and_log_exceptions
 def user_unsubscribe_notifications(bot: Bot, event: Event, notification_type_name: str):
     """
     Отписаться пользователю от уведомлений заданного типа.

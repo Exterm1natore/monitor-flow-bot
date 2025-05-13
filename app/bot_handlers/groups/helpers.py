@@ -1,11 +1,8 @@
 import inspect
 from typing import get_type_hints
 from functools import wraps
-from bot.bot import Bot, Event
 import logging
-
-
-logger = logging.getLogger(__name__)
+from bot.bot import Bot, Event
 
 
 # -------------------- Декораторы --------------------
@@ -67,8 +64,8 @@ def group_administrator_access(func):
             return
         except Exception as other_error:
             error_text = "❌ <b>Нет возможности выполнить команду.</b>"
-            error_text += f"\nПричина: {repr(other_error)}"
-            logger.exception(error_text)
+            error_text += f"\nПричина: {str(other_error)}"
+            logging.getLogger(__name__).exception(error_text)
             bot.send_text(event.from_chat, error_text, reply_msg_id=event.msgId, parse_mode='HTML')
             return
 

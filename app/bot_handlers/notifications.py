@@ -6,14 +6,16 @@ from app import db
 
 
 def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTypes, text: str,
-                                     parse_mode: str = None):
+                                     inline_keyboard_markup=None, parse_mode: str = None, format_=None):
     """
     Отправить уведомление определённого типа всем подписчикам.
 
     :param bot: VKTeams bot.
     :param notification_type: Тип уведомления.
     :param text: Текст уведомления.
+    :param inline_keyboard_markup: Встроенная в сообщение клавиатура.
     :param parse_mode: Тип разбора текста.
+    :param format_: Описание форматирования текста.
     """
     with db.get_db_session() as session:
         notify_type = db.crud.find_notification_type(session, notification_type.value)
@@ -32,4 +34,11 @@ def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTy
     # Если есть хотя-бы один подписчик отправляем уведомление
     if emails:
         notify_text = f"🔔 Новое уведомление.\n\n{text}"
-        bot_extensions.send_text_to_chats(bot, emails, notify_text, parse_mode=parse_mode)
+        bot_extensions.send_text_to_chats(
+            bot=bot,
+            chat_ids=emails,
+            text=notify_text,
+            inline_keyboard_markup=inline_keyboard_markup,
+            parse_mode=parse_mode,
+            format_=format_
+        )

@@ -2,13 +2,40 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import sys
+from bot.bot import Bot
 from . import environment
+from app.bot_handlers import notifications, constants
+
 
 # --- Основной конфиг
 LOG_DIRECTORY = Path(environment.LOG_DIRECTORY)
 LOG_FILENAME = "app.log"
 MAX_LOG_SIZE = 2 * 1024 * 1024
 BACKUP_COUNT = 5
+
+
+class BotChatLoggingHandler(logging.Handler):
+    """
+    Logging-Handler, делающий рассылку подписчикам уведомлений.
+    """
+    def __init__(self, bot: Bot, level=logging.ERROR):
+        super().__init__(level)
+        self.bot = bot
+        self._internal_logger = logging.getLogger(__name__)
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            # Чтобы избежать бесконечной рекурсии, не пересылаем сообщения от самого этого логгера
+            if record.name == __name__:
+                return
+
+            msg = f"{self.format(record)}"
+            notifications.send_notification_to_subscribers(
+                self.bot, constants.NotificationTypes.SYSTEM, msg
+            )
+
+        except Exception as e:
+            self._internal_logger.exception(f"Error sending logs to subscribers: {str(e)}")
 
 
 def enable_logging(level: str = "INFO"):
@@ -51,6 +78,11 @@ def enable_logging(level: str = "INFO"):
 
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
+
+    from app.core.bot_setup import app
+    notify_handler = BotChatLoggingHandler(app, level=logging.ERROR)
+    notify_handler.setFormatter(formatter)
+    root_logger.addHandler(notify_handler)
 
     # Подавляем лишний шум
     logging.getLogger("uvicorn").setLevel(logging.WARNING)

@@ -1,6 +1,7 @@
-from enum import Enum
+from enum import Enum, unique
 
 
+@unique
 class Commands(Enum):
     HELP = "help"
     REGISTER = "register"
@@ -10,6 +11,12 @@ class Commands(Enum):
     START = "start"
     NOTIFY_ON = "notify_on"
     NOTIFY_OFF = "notify_off"
+
+
+@unique
+class NotificationTypes(Enum):
+    SYSTEM = 'system'
+    ZABBIX = 'zabbix'
 
 
 INFO_REQUEST_MESSAGE = ("❗️ Чтобы получить более подробную информацию о работе со мной и список доступных возможностей, "

@@ -3,7 +3,8 @@ import html
 from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app import db
-from app.utils import date_and_time, text_format
+from app.utils import date_and_time
+from app.core import bot_extensions
 from app.bot_handlers.helpers import (
     send_not_found_chat, catch_and_log_exceptions
 )
@@ -35,9 +36,9 @@ def send_help_user(bot: Bot, event: Event, initial_text: str = ""):
         f"Для того, чтобы бот смог возобновить отправку сообщений, необходимо отправить <i>/{Commands.START.value}</i>)."
     )
 
-    # Отправляем текст по частям (не превышая лимит)
-    for part in text_format.split_text(output_text, 4096):
-        bot.send_text(event.from_chat, part, parse_mode='HTML')
+    bot_extensions.send_long_text(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -79,7 +80,9 @@ def register_user(bot: Bot, event: Event):
                            f"{INFO_REQUEST_MESSAGE}")
 
     # Отправляем сообщение в текущий чат
-    bot.send_text(event.from_chat, output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -111,7 +114,10 @@ def delete_user_registration(bot: Bot, event: Event):
     output_text = ("✅ <b>Вы не зарегистрированы в системе бота.</b>\n\n"
                    f"{START_REQUEST_MESSAGE}\n\n"
                    f"{INFO_REQUEST_MESSAGE}")
-    bot.send_text(event.from_chat, output_text, parse_mode='HTML')
+
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -145,7 +151,9 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
         else:
             raise ValueError("⛔ Unprocessed case")
 
-    bot.send_text(event.from_chat, text=output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -174,4 +182,6 @@ def user_unsubscribe_notifications(bot: Bot, event: Event, notification_type_nam
             db.crud.delete_notification_subscriber_by_data(session, chat, notification_type)
             output_text = f"✅ <b>Вы отписались от уведомлений типа '<i>{html.escape(notification_type_name)}</i>'.</b>"
 
-    bot.send_text(event.from_chat, text=output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )

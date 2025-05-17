@@ -58,4 +58,3 @@ def add_user_command_to_bot(bot: Bot):
     bot.dispatcher.add_handler(CommandHandler(
         command=bot_handlers.Commands.STOP.value, filters=main_filter, callback=bot_handlers.sign_out_command
     ))
-

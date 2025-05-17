@@ -3,7 +3,8 @@ from bot.bot import Bot, Event
 from bot.constant import ChatType
 from . import helpers
 from app import db
-from app.utils import date_and_time, text_format
+from app.utils import date_and_time
+from app.core import bot_extensions
 from app.bot_handlers.helpers import (
     send_not_found_chat, catch_and_log_exceptions
 )
@@ -27,9 +28,9 @@ def send_help_group(bot: Bot, event: Event, initial_text: str = ""):
     else:
         output_text = f"{initial_text}"
 
-    # Отправляем текст по частям (не превышая лимит)
-    for part in text_format.split_text(output_text, 4096):
-        bot.send_text(event.from_chat, part, parse_mode='HTML')
+    bot_extensions.send_long_text(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -65,7 +66,9 @@ def register_group(bot: Bot, event: Event):
                            f"{INFO_REQUEST_MESSAGE}")
 
     # Отправляем сообщение в текущий чат
-    bot.send_text(event.from_chat, output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -98,7 +101,9 @@ def delete_group_registration(bot: Bot, event: Event):
     output_text = ("✅ <b>Группа не зарегистрированы в системе бота.</b>\n\n"
                    f"{START_REQUEST_MESSAGE}\n\n"
                    f"{INFO_REQUEST_MESSAGE}")
-    bot.send_text(event.from_chat, output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -130,7 +135,9 @@ def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name
             )
             output_text = f"✅ <b>Группа успешно подписана на уведомления типа '<i>{html.escape(notification_type.type)}</i>'</b>"
 
-    bot.send_text(event.from_chat, text=output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -160,4 +167,6 @@ def group_unsubscribe_notifications(bot: Bot, event: Event, notification_type_na
             db.crud.delete_notification_subscriber_by_data(session, chat, notification_type)
             output_text = f"✅ <b>Группа отписана от уведомлений типа '<i>{html.escape(notification_type_name)}</i>'.</b>"
 
-    bot.send_text(event.from_chat, text=output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )

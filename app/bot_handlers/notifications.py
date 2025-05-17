@@ -1,4 +1,5 @@
 from typing import List
+import logging
 from bot.bot import Bot
 from .constants import NotificationTypes
 from app.core import bot_extensions
@@ -6,7 +7,8 @@ from app import db
 
 
 def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTypes, text: str,
-                                     inline_keyboard_markup=None, parse_mode: str = None, format_=None):
+                                     inline_keyboard_markup=None, parse_mode: str = None, format_=None,
+                                     specific_logger: logging.Logger = None):
     """
     Отправить уведомление определённого типа всем подписчикам.
 
@@ -16,6 +18,7 @@ def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTy
     :param inline_keyboard_markup: Встроенная в сообщение клавиатура.
     :param parse_mode: Тип разбора текста.
     :param format_: Описание форматирования текста.
+    :param specific_logger: Специальный логгер, который будет использоваться вместо глобального.
     """
     with db.get_db_session() as session:
         notify_type = db.crud.find_notification_type(session, notification_type.value)
@@ -40,5 +43,6 @@ def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTy
             text=notify_text,
             inline_keyboard_markup=inline_keyboard_markup,
             parse_mode=parse_mode,
-            format_=format_
+            format_=format_,
+            specific_logger=specific_logger
         )

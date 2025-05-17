@@ -3,6 +3,7 @@ import html
 from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app.utils import text_format
+from app.core import bot_extensions
 from app import db
 from . import users, groups
 from .helpers import (
@@ -28,7 +29,9 @@ def start_command(bot: Bot, event: Event):
                    "произошедших в системе мониторинга.\n\n"
                    f"{INFO_REQUEST_MESSAGE}")
 
-    bot.send_text(event.from_chat, output_text, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
     # Ищем чат в базе данных
     with db.get_db_session() as session:
@@ -144,9 +147,9 @@ def status_command(bot: Bot, event: Event):
 
     output_text = ''.join(lines)
 
-    # Отправляем текст по частям (не превышая лимит)
-    for part in text_format.split_text(output_text, 4096):
-        bot.send_text(event.from_chat, part, parse_mode='HTML')
+    bot_extensions.send_long_text(
+        bot, event.from_chat, output_text, parse_mode='HTML'
+    )
 
 
 def register_command(bot: Bot, event: Event):
@@ -192,12 +195,16 @@ def notify_on_command(bot: Bot, event: Event):
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
         output_text = "⛔️ <b>Команда уведомлений не распознана.</b>"
-        bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
         return
 
     # Если нет аргументов в команде
     if len(text_items) == 1:
-        bot.send_text(event.from_chat, text=NOTIFY_ON_REFERENCE, parse_mode='HTML')
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, text=NOTIFY_ON_REFERENCE, parse_mode='HTML'
+        )
         return
 
     # Если 1 аргумент в команде
@@ -222,7 +229,9 @@ def notify_on_command(bot: Bot, event: Event):
     # В остальных случаях выводим, что формат команды неверный
     output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
                    f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.NOTIFY_ON.value}</i>")
-    bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -236,12 +245,16 @@ def notify_off_command(bot: Bot, event: Event):
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
         output_text = "⛔️ <b>Команда уведомлений не распознана.</b>"
-        bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
         return
 
     # Если нет аргументов в команде
     if len(text_items) == 1:
-        bot.send_text(event.from_chat, text=NOTIFY_OFF_REFERENCE, parse_mode='HTML')
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, text=NOTIFY_OFF_REFERENCE, parse_mode='HTML'
+        )
         return
 
     # Если 1 аргумент в команде
@@ -266,7 +279,9 @@ def notify_off_command(bot: Bot, event: Event):
     # В остальных случаях выводим, что формат команды неверный
     output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
                    f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.NOTIFY_OFF.value}</i>")
-    bot.send_text(event.from_chat, text=output_text, reply_msg_id=event.msgId, parse_mode='HTML')
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+    )
 
 
 @catch_and_log_exceptions
@@ -281,4 +296,6 @@ def unprocessed_command(bot: Bot, event: Event):
                    "Я не знаю что с этим делать\n\n"
                    f"{INFO_REQUEST_MESSAGE}")
 
-    bot.send_text(event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode="HTML")
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+    )

@@ -140,7 +140,7 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
         if notification_type is None:
-            output_text = f"⚠️ <b>Типа уведомления '<i>{html.escape(notification_type_name)}</i>' не существует.</b>"
+            output_text = f"⚠️ <b>Такого типа уведомления не существует.</b>"
         elif any(item.notification_type == notification_type.id for item in chat.notification_subscribers):
             output_text = f"✅ <b>Вы уже подписаны на тип уведомления '<i>{html.escape(notification_type_name)}</i>'.</b>"
         elif is_admin:
@@ -152,7 +152,7 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
             raise ValueError("⛔ Unprocessed case")
 
     bot_extensions.send_text_or_raise(
-        bot, event.from_chat, output_text, parse_mode='HTML'
+        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
     )
 
 
@@ -175,7 +175,7 @@ def user_unsubscribe_notifications(bot: Bot, event: Event, notification_type_nam
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
         if notification_type is None:
-            output_text = f"⚠️ <b>Типа уведомления '<i>{html.escape(notification_type_name)}</i>' не существует.</b>"
+            output_text = f"⚠️ <b>Такого типа уведомления не существует.</b>"
         elif all(item.notification_type != notification_type.id for item in chat.notification_subscribers):
             output_text = f"✅ <b>Вы не подписаны на тип уведомления '<i>{html.escape(notification_type_name)}</i>'.</b>"
         else:
@@ -183,5 +183,5 @@ def user_unsubscribe_notifications(bot: Bot, event: Event, notification_type_nam
             output_text = f"✅ <b>Вы отписались от уведомлений типа '<i>{html.escape(notification_type_name)}</i>'.</b>"
 
     bot_extensions.send_text_or_raise(
-        bot, event.from_chat, output_text, parse_mode='HTML'
+        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
     )

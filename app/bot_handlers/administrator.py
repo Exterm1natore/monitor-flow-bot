@@ -105,7 +105,7 @@ def database_record_review(bot: Bot, event: Event):
         None
     )
     if not config:
-        text = "⛔️ <b>Таблица не поддерживается.</b>"
+        text = f"⛔️ <b>Таблица '<i>{table}</i>' не поддерживается.</b>"
         bot_extensions.edit_text_or_raise(
             bot, event.from_chat, event.msgId, text, parse_mode='HTML'
         )
@@ -149,14 +149,15 @@ def database_record_review(bot: Bot, event: Event):
         markup = json.dumps(keyboard)
 
     if not records:
-        text = "📭 <b>Записей нет.</b>"
+        text = f"Список таблицы '{table}'\n\n📭 Записей нет."
         bot_extensions.edit_text_or_raise(
-            bot, event.from_chat, event.msgId, text,  inline_keyboard_markup=markup, parse_mode='HTML'
+            bot, event.from_chat, event.msgId, text,  inline_keyboard_markup=markup
         )
         return
 
     format_records = db_records_format.format_for_chat(records, model_fields=model_fields)
+    output_text = f"Список таблицы '{table}'\n\n{format_records}"
     bot_extensions.edit_text_or_raise(
-        bot, event.from_chat, event.msgId, format_records, inline_keyboard_markup=markup, parse_mode='HTML'
+        bot, event.from_chat, event.msgId, output_text, inline_keyboard_markup=markup
     )
     return

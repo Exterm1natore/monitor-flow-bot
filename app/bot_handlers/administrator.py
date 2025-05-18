@@ -26,7 +26,7 @@ def get_data_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда уведомлений не распознана.</b>"
+        output_text = "⛔️ <b>Команда получения списка из базы данных не распознана.</b>"
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )

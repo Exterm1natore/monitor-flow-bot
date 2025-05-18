@@ -3,6 +3,7 @@ from enum import Enum, unique
 
 @unique
 class Commands(Enum):
+    # --- base commands
     HELP = "help"
     REGISTER = "register"
     SIGN_OUT = "sign_out"
@@ -11,6 +12,14 @@ class Commands(Enum):
     START = "start"
     NOTIFY_ON = "notify_on"
     NOTIFY_OFF = "notify_off"
+
+    # --- admin commands
+    GET_DATA = "get_data"
+
+
+@unique
+class CallbackAction(Enum):
+    VIEW_DB = "view_db"
 
 
 @unique
@@ -41,3 +50,9 @@ NOTIFY_OFF_REFERENCE = (f"<b>Формат: /{Commands.NOTIFY_OFF.value} [option]
                         "🔹 &lt;<i>название типа уведомления</i>&gt; - отменить подписку на заданный тип уведомления.")
 
 HELP_BASE_MESSAGE = "<b>Этот бот предназначен для отправки событий, произошедших в отслеживаемых системах.</b>"
+
+GET_DATA_REFERENCE = (f"<b>Формат: /{Commands.GET_DATA.value} [option] ...</b>\n\n"
+                      f"- Команда предназначена для получения записей из базы данных.\n\n"
+                      f"<b>Список опций:</b>\n"
+                      f"🔹 '<i>-list</i>' - получить список всех доступных таблиц базы данных;\n"
+                      f"🔹 &lt;<i>название таблицы</i>&gt; - получить список записей заданной таблицы.")

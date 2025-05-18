@@ -15,5 +15,8 @@ if __name__ == "__main__":
     # --- User commands ------
     bot_setup.add_user_command_to_bot(app)
 
+    # --- Admin commands -----
+    bot_setup.add_admin_commands_to_bot(app)
+
     app.start_polling()
     app.idle()

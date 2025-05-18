@@ -1,5 +1,8 @@
 from bot.bot import Bot
-from bot.handler import StartCommandHandler, HelpCommandHandler, CommandHandler, UnknownCommandHandler
+from bot.handler import (
+    StartCommandHandler, HelpCommandHandler, CommandHandler, UnknownCommandHandler,
+    BotButtonCommandHandler
+)
 from bot.constant import ChatType
 from . import environment, bot_extensions
 from app import bot_handlers
@@ -58,3 +61,24 @@ def add_user_command_to_bot(bot: Bot):
     bot.dispatcher.add_handler(CommandHandler(
         command=bot_handlers.Commands.STOP.value, filters=main_filter, callback=bot_handlers.sign_out_command
     ))
+
+
+def add_admin_commands_to_bot(bot: Bot):
+    """
+    Добавить команды администратора боту.
+
+    :param bot: VKTeams bot.
+    """
+    # Фильтр приватного чата
+    private_filter = bot_extensions.filter.ChatTypeFilter(ChatType.PRIVATE.value)
+
+    bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.GET_DATA.value, filters=private_filter, callback=bot_handlers.get_data_command
+    ))
+
+    bot.dispatcher.add_handler(
+        BotButtonCommandHandler(
+            filters=bot_extensions.filter.CallbackActionFilter(bot_handlers.CallbackAction.VIEW_DB.value),
+            callback=bot_handlers.database_record_review
+        )
+    )

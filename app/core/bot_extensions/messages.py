@@ -74,6 +74,48 @@ def send_text_or_raise(bot: Bot, chat_id: str, text: str, reply_msg_id=None, for
     return response
 
 
+def edit_text_or_raise(bot: Bot, chat_id: str, msg_id: str, text: str, inline_keyboard_markup=None,
+                       parse_mode=None, format_=None) -> Response:
+    """
+    Изменить сообщение через бот.
+    **Можно изменить только сообщение бота.**
+    При HTTP-ошибке или ошибке доставки до адресата выбрасывается исключение.
+
+    :param bot: Объект Bot VKTeams.
+    :param chat_id: ID чата.
+    :param msg_id: ID сообщения, которое изменяется.
+    :param text: Текст сообщения.
+    :param inline_keyboard_markup: Встроенная в сообщение клавиатура.
+    :param parse_mode: Формат разбора текста.
+    :param format_: Описание форматирования текста.
+    :return: Объект Response, содержащий ответ сервера на HTTP-запрос.
+    :raises requests.HTTPError: Ответ сервера содержит HTTP-ошибку.
+    :raises MessageDeliveryError: Ошибка доставки сообщения до адресата.
+    """
+    response = bot.edit_text(
+        chat_id=chat_id,
+        msg_id=msg_id,
+        text=text,
+        inline_keyboard_markup=inline_keyboard_markup,
+        parse_mode=parse_mode,
+        format_=format_
+    )
+
+    # Выбрасываем исключение при ошибочном статусе
+    response.raise_for_status()
+    # Тело ответа сервера
+    data: dict = response.json()
+    # Если ошибка отправки, создаём исключение
+    if not data.get('ok'):
+        raise MessageDeliveryError(
+            chat_id=chat_id,
+            description=data.get("description", "(no description)"),
+            response_data=data
+        )
+
+    return response
+
+
 def send_long_text(bot: Bot, chat_id: str, text: str, max_len_text: int = 4096, reply_msg_id=None,
                    inline_keyboard_markup=None, parse_mode=None, format_=None) -> Response:
     """

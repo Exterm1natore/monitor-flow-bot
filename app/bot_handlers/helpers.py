@@ -1,9 +1,13 @@
 import inspect
-from typing import get_type_hints, Optional
+import json
+from typing import get_type_hints, Optional, List, Any, Dict
 from functools import wraps
 from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app import db
+from .constants import (
+    CallbackAction
+)
 from app.core import bot_extensions
 import logging
 import html
@@ -13,6 +17,89 @@ from .constants import (
 
 
 # -------------------- Декораторы --------------------
+
+
+def administrator_access(func):
+    """
+    Проверить и выполнить функцию только в случае, если определён доступ администратора.
+    """
+    sig = inspect.signature(func)
+    params = list(sig.parameters.values())
+
+    if len(params) < 2:
+        raise TypeError(f"❌ The function '{func.__name__}' must take at least two arguments: Bot and Event.")
+
+    # Получаем аннотации типов
+    type_hints = get_type_hints(func)
+
+    first_param_type = type_hints.get(params[0].name)
+    second_param_type = type_hints.get(params[1].name)
+
+    # Проверяем соответствие типам
+    if first_param_type is not Bot or second_param_type is not Event:
+        raise TypeError(
+            f"❌ The first two parameters of the function '{func.__name__}' must have types Bot and Event respectively.\n"
+            f"Detected: {first_param_type} and {second_param_type}"
+        )
+
+    @wraps(func)
+    def wrapper(bot: Bot, event: Event, *args, **kwargs):
+        try:
+            # Если приватный тип чата
+            if event.chat_type == ChatType.PRIVATE.value:
+                with db.get_db_session() as session:
+                    chat = db.crud.find_chat(session, event.from_chat)
+                    user = chat.user if chat is not None else None
+                    is_admin = db.crud.is_user_administrator(session, user) \
+                        if user is not None else False
+
+                # Если чат не существует или пользователь не является администратором
+                if chat is None or user is None or not is_admin:
+                    raise PermissionError("⛔️ <b>Нет доступа для выполнения команды.</b>\n"
+                                          "Вы не администратор.")
+            else:
+                response = bot.get_chat_admins(event.from_chat)
+                response.raise_for_status()
+
+                response_data = response.json()
+
+                # Если ответ за запрос списка администраторов корректен
+                if response_data.get('ok', False):
+                    is_admin = any(user['userId'] == event.message_author['userId'] for user in response_data.get('admins', []))
+                    'admins'
+                    if not is_admin:
+                        raise PermissionError("⛔️ <b>Нет доступа для выполнения команды.</b>\n"
+                                              "Вы не администратор группы.")
+                else:
+                    error_text = "❌ <b>Нет возможности выполнить команду.</b>"
+
+                    desc_error: str = response_data.get('description', "")
+
+                    if "permission denied" in desc_error.lower():
+                        error_text += ("\nБот не обладает правами администратора данной группы, "
+                                       "для выполнения заданного действия.")
+                    else:
+                        error_text += f"\nПричина: {desc_error}"
+
+                    raise PermissionError(error_text)
+        except PermissionError as permission_error:
+            bot_extensions.send_text_or_raise(
+                bot, event.from_chat, str(permission_error), reply_msg_id=event.msgId, parse_mode='HTML'
+            )
+            return
+        except Exception as other_error:
+            error_text = "❌ <b>Нет возможности выполнить команду.</b>"
+            error_text += f"\nПричина: {str(other_error)}"
+            logging.getLogger(__name__).exception(other_error)
+
+            bot_extensions.send_text_or_raise(
+                bot, event.from_chat, error_text, reply_msg_id=event.msgId, parse_mode='HTML'
+            )
+            return
+
+        return func(bot, event, *args, **kwargs)
+
+    return wrapper
 
 
 def catch_and_log_exceptions(func):
@@ -167,3 +254,38 @@ def send_notification_description(bot: Bot, chat_id: str, type_name: str):
     bot_extensions.send_long_text(
         bot, chat_id, output_text, parse_mode='HTML'
     )
+
+
+def send_available_database_tables(bot: Bot, chat_id: str):
+    """
+    Отправить список доступных таблиц базы данных.
+
+    :param bot: VKTeams bot.
+    :param chat_id: Чат, в который отправляется список.
+    """
+    tables: List[str] = list(db.models.Base.metadata.tables.keys())
+
+    output_text = ("<b>Список доступных таблиц базы данных:</b>\n"
+                   f"{'[' + html.escape(', '.join(tables)) + ']' if tables else 'Нет доступных'}")
+
+    bot_extensions.send_long_text(
+        bot, chat_id, output_text, parse_mode='HTML'
+    )
+
+
+def make_callback_data(action: CallbackAction, **params) -> str:
+    """Генерирует callback_data в JSON-формате."""
+    payload = {"action": action.value}
+    payload.update(params)
+    return json.dumps(payload, separators=(',', ':'))
+
+
+def parse_callback_data(data: str) -> Dict[str, Any]:
+    """Преобразует JSON-строку в словарь с проверкой."""
+    try:
+        parsed = json.loads(data)
+        if "action" not in parsed:
+            raise ValueError("Missing 'action' in callback_data.")
+        return parsed
+    except json.JSONDecodeError:
+        raise ValueError("Invalid callback_data format.")

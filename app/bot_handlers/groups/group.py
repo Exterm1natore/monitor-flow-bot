@@ -1,12 +1,11 @@
 import html
 from bot.bot import Bot, Event
 from bot.constant import ChatType
-from . import helpers
 from app import db
 from app.utils import date_and_time
 from app.core import bot_extensions
 from app.bot_handlers.helpers import (
-    send_not_found_chat, catch_and_log_exceptions
+    send_not_found_chat, catch_and_log_exceptions, administrator_access
 )
 from app.bot_handlers.constants import (
     INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE, HELP_BASE_MESSAGE
@@ -34,7 +33,7 @@ def send_help_group(bot: Bot, event: Event, initial_text: str = ""):
 
 
 @catch_and_log_exceptions
-@helpers.group_administrator_access
+@administrator_access
 def register_group(bot: Bot, event: Event):
     """
     Зарегистрировать новую группу, если не зарегистрирована.
@@ -72,7 +71,7 @@ def register_group(bot: Bot, event: Event):
 
 
 @catch_and_log_exceptions
-@helpers.group_administrator_access
+@administrator_access
 def delete_group_registration(bot: Bot, event: Event):
     """
     Удалить регистрацию группы, если зарегистрирована.
@@ -107,7 +106,7 @@ def delete_group_registration(bot: Bot, event: Event):
 
 
 @catch_and_log_exceptions
-@helpers.group_administrator_access
+@administrator_access
 def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name: str):
     """
     Подписаться группе на уведомления заданного типа.
@@ -141,7 +140,7 @@ def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name
 
 
 @catch_and_log_exceptions
-@helpers.group_administrator_access
+@administrator_access
 def group_unsubscribe_notifications(bot: Bot, event: Event, notification_type_name: str):
     """
     Отписаться группе от уведомлений заданного типа.

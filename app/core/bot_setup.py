@@ -82,3 +82,7 @@ def add_admin_commands_to_bot(bot: Bot):
             callback=bot_handlers.database_record_review
         )
     )
+
+    bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.DEL_CHAT.value, filters=private_filter, callback=bot_handlers.del_chat_command
+    ))

@@ -9,7 +9,7 @@ from .helpers import (
     make_callback_data, parse_callback_data
 )
 from .constants import (
-    Commands, CallbackAction, GET_DATA_REFERENCE
+    Commands, CallbackAction, GET_DATA_REFERENCE, DEL_CHAT_REFERENCE
 )
 from app.utils import text_format
 from app.core import bot_extensions
@@ -161,3 +161,50 @@ def database_record_review(bot: Bot, event: Event):
         bot, event.from_chat, event.msgId, output_text, inline_keyboard_markup=markup
     )
     return
+
+
+@catch_and_log_exceptions
+@administrator_access
+def del_chat_command(bot: Bot, event: Event):
+    """
+    Обработать команду del_chat.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    text_items = text_format.normalize_whitespace(event.text).split()
+    if not text_items:
+        output_text = "⛔️ <b>Команда удаления чата не распознана.</b>"
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
+        return
+
+    # Если нет аргументов в команде
+    if len(text_items) == 1:
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, text=DEL_CHAT_REFERENCE, parse_mode='HTML'
+        )
+        return
+
+    # Если 1 аргумент в команде
+    if len(text_items) == 2:
+        with db.get_db_session() as session:
+            result = db.crud.delete_chat_by_data(session, text_items[1])
+
+        if result:
+            output_text = "✅ <b>Чат успешно удалён из базы данных.</b>"
+        else:
+            output_text = "⛔️ <b>Чат с таким email не был найден в базе данных.</b>"
+
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
+        return
+
+    # В остальных случаях выводим, что формат команды неверный
+    output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
+                   f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.DEL_CHAT.value}</i>")
+    bot_extensions.send_text_or_raise(
+        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+    )

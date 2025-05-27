@@ -122,7 +122,7 @@ def delete_group_by_id(db: Session, group_id: int, delete_chat: bool) -> bool:
     return delete_group(db, group, delete_chat)
 
 
-def delete_group_by_chat(db: Session, chat: Chat, delete_chat: bool):
+def delete_group_by_chat(db: Session, chat: Chat, delete_chat: bool) -> bool:
     """
     Удалить запись группы по данным чата.
 

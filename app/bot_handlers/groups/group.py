@@ -1,4 +1,3 @@
-from typing import Optional
 import html
 import logging
 from bot.bot import Bot, Event
@@ -75,6 +74,7 @@ def register_group(bot: Bot, event: Event):
             is_register = True
             _, model_fields, _ = db_records_format.find_config_model_format(db.get_tablename_by_model(db.Group))
             record_format = db_records_format.format_for_chat(group, model_fields=model_fields)
+            admin_request_text = f"🆕 Новая группа зарегистрирована.\n\nДанные:\n{record_format}"
 
     # Отправляем сообщение в текущий чат
     bot_extensions.send_text_or_raise(
@@ -84,8 +84,7 @@ def register_group(bot: Bot, event: Event):
     # Оповещение для администраторов
     if is_register:
         try:
-            notify_text = f"🆕 Новая группа зарегистрирована.\n\nДанные:\n{record_format}"
-            notifications.send_notification_to_administrators(bot, notify_text)
+            notifications.send_notification_to_administrators(bot, admin_request_text)
         except Exception as e:
             logging.getLogger(__name__).exception(e)
 
@@ -145,7 +144,6 @@ def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
         is_subscribe = False
-        notification_type_type: Optional[str] = None
         if notification_type is None:
             output_text = f"⚠️ Такого типа уведомления не существует."
         elif any(item.notification_type == notification_type.id for item in chat.notification_subscribers):
@@ -157,17 +155,17 @@ def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name
             output_text = f"✅ Группа успешно подписана на уведомления типа '{html.escape(notification_type.type)}'."
 
             is_subscribe = True
-            notification_type_type = notification_type.type
+            admin_request_text = (f"Группа с email = '{event.from_chat}' подписана на "
+                                  f"уведомления типа '{notification_type.type}'.")
 
     bot_extensions.send_text_or_raise(
         bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
     )
 
     # Оповещение для администраторов
-    if is_subscribe and notification_type_type is not None:
+    if is_subscribe:
         try:
-            notify_text = f"Группа с email = '{event.from_chat}' подписана на уведомления типа '{notification_type_type}'."
-            notifications.send_notification_to_administrators(bot, notify_text)
+            notifications.send_notification_to_administrators(bot, admin_request_text)
         except Exception as e:
             logging.getLogger(__name__).exception(e)
 
@@ -192,13 +190,13 @@ def group_unsubscribe_notifications(bot: Bot, event: Event, notification_type_na
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
         is_unsubscribe = False
-        notification_type_type: Optional[str] = None
         if notification_type is None:
             output_text = f"⚠️ Такого типа уведомления не существует."
         elif all(item.notification_type != notification_type.id for item in chat.notification_subscribers):
             output_text = f"✅ Группа не подписана на тип уведомления '{html.escape(notification_type_name)}'."
         else:
-            notification_type_type = notification_type.type
+            admin_request_text = (f"Группа с email = '{event.from_chat}' отписана от "
+                                  f"уведомлений типа '{notification_type.type}'.")
             is_unsubscribe = db.crud.delete_notification_subscriber_by_data(session, chat, notification_type)
             output_text = f"✅ Группа отписана от уведомлений типа '{html.escape(notification_type_name)}'."
 
@@ -207,9 +205,8 @@ def group_unsubscribe_notifications(bot: Bot, event: Event, notification_type_na
     )
 
     # Оповещение для администраторов
-    if is_unsubscribe and notification_type_type is not None:
+    if is_unsubscribe:
         try:
-            notify_text = f"Группа с email = '{event.from_chat}' отписана от уведомлений типа '{notification_type_type}'."
-            notifications.send_notification_to_administrators(bot, notify_text)
+            notifications.send_notification_to_administrators(bot, admin_request_text)
         except Exception as e:
             logging.getLogger(__name__).exception(e)

@@ -1,9 +1,10 @@
 from typing import Optional
+import logging
 import html
 from bot.bot import Bot, Event
 from bot.constant import ChatType
 from app import db
-from app.utils import date_and_time
+from app.utils import date_and_time, db_records_format
 from app.core import bot_extensions
 from app.bot_handlers.helpers import (
     send_not_found_chat, catch_and_log_exceptions
@@ -11,6 +12,7 @@ from app.bot_handlers.helpers import (
 from app.bot_handlers.constants import (
     Commands, INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE, HELP_BASE_MESSAGE
 )
+from app.bot_handlers import notifications
 
 
 @catch_and_log_exceptions
@@ -78,6 +80,7 @@ def register_user(bot: Bot, event: Event):
             chat = db.crud.create_chat(session, event.from_chat, event.chat_type)
 
         # Если пользователь существует
+        is_register = False
         if chat.user is not None:
             output_text = "⚠️ Вы уже зарегистрированы в системе бота, повторная регистрация не требуется."
         else:
@@ -91,14 +94,25 @@ def register_user(bot: Bot, event: Event):
                 db.crud.create_administrator(
                     session, user, event.message_author['userId'], date_and_time.get_current_date_moscow()
                 )
-
             output_text = ("✅ Вы успешно зарегистрированы в системе бота.\n\n"
                            f"{INFO_REQUEST_MESSAGE}")
+
+            is_register = True
+            _, model_fields, _ = db_records_format.find_config_model_format(db.get_tablename_by_model(db.User))
+            record_format = db_records_format.format_for_chat(user, model_fields=model_fields)
 
     # Отправляем сообщение в текущий чат
     bot_extensions.send_text_or_raise(
         bot, event.from_chat, output_text, parse_mode='HTML'
     )
+
+    # Оповещение для администраторов
+    if is_register:
+        try:
+            notify_text = f"🆕 Новый пользователь зарегистрирован.\n\nДанные:\n{record_format}"
+            notifications.send_notification_to_administrators(bot, notify_text)
+        except Exception as e:
+            logging.getLogger(__name__).exception(e)
 
 
 @catch_and_log_exceptions
@@ -155,6 +169,8 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
         is_admin = db.crud.is_user_administrator(session, chat.user)
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
+        is_subscribe = False
+        notification_type_type: Optional[str] = None
         if notification_type is None:
             output_text = f"⚠️ Такого типа уведомления не существует."
         elif any(item.notification_type == notification_type.id for item in chat.notification_subscribers):
@@ -164,12 +180,23 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
                 session, chat, notification_type, chat.email, date_and_time.get_current_date_moscow()
             )
             output_text = f"✅ Вы успешно подписались на уведомления типа '{html.escape(notification_type.type)}'."
+
+            is_subscribe = True
+            notification_type_type = notification_type.type
         else:
             raise ValueError("⛔ Unprocessed case")
 
     bot_extensions.send_text_or_raise(
         bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
     )
+
+    # Оповещение для администраторов
+    if is_subscribe and notification_type_type is not None:
+        try:
+            notify_text = f"Пользователь с email = '{event.from_chat}' подписался на уведомления типа '{notification_type_type}'."
+            notifications.send_notification_to_administrators(bot, notify_text)
+        except Exception as e:
+            logging.getLogger(__name__).exception(e)
 
 
 @catch_and_log_exceptions
@@ -190,14 +217,25 @@ def user_unsubscribe_notifications(bot: Bot, event: Event, notification_type_nam
 
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
+        is_unsubscribe = False
+        notification_type_type: Optional[str] = None
         if notification_type is None:
             output_text = f"⚠️ Такого типа уведомления не существует."
         elif all(item.notification_type != notification_type.id for item in chat.notification_subscribers):
             output_text = f"✅ Вы не подписаны на тип уведомления '{html.escape(notification_type_name)}'."
         else:
-            db.crud.delete_notification_subscriber_by_data(session, chat, notification_type)
+            notification_type_type = notification_type.type
+            is_unsubscribe = db.crud.delete_notification_subscriber_by_data(session, chat, notification_type)
             output_text = f"✅ Вы отписались от уведомлений типа '{html.escape(notification_type_name)}'."
 
     bot_extensions.send_text_or_raise(
         bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
     )
+
+    # Оповещение для администраторов
+    if is_unsubscribe and notification_type_type is not None:
+        try:
+            notify_text = f"Пользователь с email = '{event.from_chat}' отписался от уведомлений типа '{notification_type_type}'."
+            notifications.send_notification_to_administrators(bot, notify_text)
+        except Exception as e:
+            logging.getLogger(__name__).exception(e)

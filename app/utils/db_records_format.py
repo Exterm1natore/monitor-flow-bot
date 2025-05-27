@@ -1,20 +1,88 @@
 from typing import Iterable, List, Optional, Union, Tuple, Type
+from datetime import datetime, date
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy import Column
 from app import db
+from app.utils import date_and_time
 
 
-# NestedField теперь может принимать InstrumentedAttribute в качестве первого элемента
 NestedField = Tuple[
     Union[str, InstrumentedAttribute],
     List[Union[str, Column, InstrumentedAttribute, "NestedField"]]
 ]
 
 
+ModelFormatConfig = Tuple[
+    Type[db.T],                 # модель
+    List[Union[str, Column, InstrumentedAttribute, NestedField]],
+    int                              # page size
+]
+
+
+MODEL_FORMATS: List[ModelFormatConfig] = [
+    (
+        db.ChatType,
+        [db.ChatType.id, db.ChatType.type],
+        20
+    ),
+    (
+        db.Chat,
+        [db.Chat.id, db.Chat.email, (db.Chat.chat_type_model, [db.ChatType.type])],
+        20
+    ),
+    (
+        db.User,
+        [db.User.id, (db.User.chat, [db.Chat.email]), db.User.first_name, db.User.last_name],
+        20
+    ),
+    (
+        db.Group,
+        [db.Group.id, (db.Group.chat, [db.Chat.email]), db.Group.title],
+        20
+    ),
+    (
+        db.Administrator,
+        [
+            db.Administrator.user_id,
+            (db.Administrator.user, [(db.User.chat, [db.Chat.email]), db.User.first_name, db.User.last_name]),
+            db.Administrator.granted_by,
+            db.Administrator.granted_at
+        ],
+        15
+    ),
+    (
+        db.NotificationType,
+        [db.NotificationType.id, db.NotificationType.type, db.NotificationType.description],
+        5
+    ),
+    (
+        db.NotificationSubscriber,
+        [
+            db.NotificationSubscriber.id,
+            (db.NotificationSubscriber.chat, [db.Chat.email]),
+            (db.NotificationSubscriber.notification_type_model, [db.NotificationType.type])
+        ],
+        20
+    ),
+]
+
+
+def find_config_model_format(table_name: str) -> Optional[ModelFormatConfig]:
+    """
+    Найти конфигурацию модели для заданной таблицы.
+    :param table_name: Название таблицы ORM-модели.
+    :return: Найденная конфигурация/None
+    """
+    return next(
+        (conf for conf in MODEL_FORMATS if conf[0].__tablename__ == table_name),
+        None
+    )
+
+
 def format_for_chat(
-    obj: Union[db.crud.T, Iterable[db.crud.T]],
+    obj: Union[db.T, Iterable[db.T]],
     *,
     model_fields: Optional[List[Union[
         str,
@@ -41,7 +109,7 @@ def format_for_chat(
     :return: Сформированная строка. Для одного объекта — строка `{field1=..., field2=...}`.
              Для списка — несколько таких блоков, разделённых record_separator.
     """
-    # 1) Списки/кортежи (не строки/байты/словарь)
+    # 1) Iterable (не str/bytes/dict) — склеиваем записи
     if isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, dict)):
         formatted = [
             format_for_chat(item, model_fields=model_fields,
@@ -51,12 +119,12 @@ def format_for_chat(
         ]
         return record_separator.join(formatted)
 
-    # 2) Словари
+    # 2) dict — простой вывод
     if isinstance(obj, dict):
         items = [f"{k}={v!r}" for k, v in obj.items()]
         return "{ " + field_separator.join(items) + " }"
 
-    # 3) SQLAlchemy‑модель
+    # 3) SQLAlchemy-модель
     if isinstance(obj.__class__, DeclarativeMeta):
         mapper = inspect(obj.__class__)
 
@@ -94,6 +162,9 @@ def format_for_chat(
             if field.endswith("_id") and field[:-3] in nested_fields:
                 continue
             val = getattr(obj, field, None)
+            # Если datetime, форматируем в строку
+            if isinstance(val, (datetime, date)):
+                val = date_and_time.format_datetime(val, fmt="%Y-%m-%d %H:%M")
             parts.append(f"{field}={val!r}")
 
         # вывод вложенных связей
@@ -117,58 +188,3 @@ def format_for_chat(
 
     # 4) Примитивы
     return str(obj)
-
-
-ModelFormatConfig = Tuple[
-    Type[db.crud.T],                 # модель
-    List[Union[str, Column, InstrumentedAttribute, NestedField]],
-    int                              # page size
-]
-
-
-MODEL_FORMATS: List[ModelFormatConfig] = [
-    (
-        db.ChatType,
-        [db.ChatType.id, db.ChatType.type],
-        20
-    ),
-    (
-        db.Chat,
-        [db.Chat.id, db.Chat.email, (db.Chat.chat_type_model, [db.ChatType.type])],
-        20
-    ),
-    (
-        db.User,
-        [db.User.id, (db.User.chat, [db.Chat.email]), db.User.first_name, db.User.last_name],
-        20
-    ),
-    (
-        db.Group,
-        [db.Group.id, (db.Group.chat, [db.Chat.email]), db.Group.title],
-        20
-    ),
-    (
-        db.Administrator,
-        [
-            db.Administrator.user_id,
-            (db.Administrator.user, (db.User.chat, [db.Chat.email]), [db.User.first_name, db.User.last_name]),
-            db.Administrator.granted_by,
-            db.Administrator.granted_at
-        ],
-        15
-    ),
-    (
-        db.NotificationType,
-        [db.NotificationType.id, db.NotificationType.type, db.NotificationType.description],
-        20
-    ),
-    (
-        db.NotificationSubscriber,
-        [
-            db.NotificationSubscriber.id,
-            (db.NotificationSubscriber.chat, [db.Chat.email]),
-            (db.NotificationSubscriber.notification_type_model, [db.NotificationType.type])
-        ],
-        20
-    ),
-]

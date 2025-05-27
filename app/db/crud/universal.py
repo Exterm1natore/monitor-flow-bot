@@ -1,12 +1,9 @@
-from sqlalchemy.orm import Session, declarative_base
+from typing import List, Type, Optional, Union, Any
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
-from sqlalchemy import select
-from sqlalchemy import func
-from typing import List, Type, TypeVar, Optional
-
-# Базовый тип ORM моделей
-BaseModel = declarative_base()
-T = TypeVar("T", bound=BaseModel)
+from sqlalchemy import select, func, String, Text
+from app.db.base import T
 
 
 def get_all_records(db: Session, model: Type[T]) -> List[T]:
@@ -85,6 +82,56 @@ def get_records_range(
     if limit is not None:
         stmt = stmt.limit(limit)
 
+    return db.execute(stmt).scalars().all()
+
+
+def find_records(
+        db: Session,
+        model: Type[T],
+        filter_field: Union[str, InstrumentedAttribute],
+        filter_value: Any,
+        *,
+        partial_match: bool = False
+) -> List[T]:
+    """
+    Найти записи в таблице по заданному условию.
+
+    Для **строковых** полей (String, Text) можно выполнить частичный поиск.
+    Для всех остальных типов — точное совпадение.
+
+    :param db: Сессия SQLAlchemy.
+    :param model: ORM-модель поиска.
+    :param filter_field: Имя или атрибут поля.
+    :param filter_value: Значение для фильтрации.
+    :param partial_match:
+        - True: для строковых полей частичный поиск.
+        - False: всегда точное совпадение.
+    :return: Список объектов модели, удовлетворяющих условию.
+    :raises AttributeError: В модели нет такого поля.
+    """
+    # 1. Разрешаем строку в InstrumentedAttribute
+    if isinstance(filter_field, InstrumentedAttribute):
+        column_attr = filter_field
+    else:
+        try:
+            column_attr = getattr(model, filter_field)
+        except AttributeError:
+            raise AttributeError(f"Model '{model.__name__}' has no attribute '{filter_field}'")
+
+    # 2. Решаем, какой оператор использовать
+    col_type = getattr(column_attr.property.columns[0], "type", None)
+    is_string = isinstance(col_type, (String, Text))
+
+    if partial_match and is_string and isinstance(filter_value, str):
+        # Частичный поиск для строковых колонок
+        condition = column_attr.like(f"%{filter_value}%")
+
+    else:
+        # Точное совпадение для остальных случаев
+        condition = column_attr == filter_value
+
+    # 3. Собираем и выполняем запрос
+    stmt = select(model).where(condition)
     return db.execute(stmt).scalars().all()
 
 

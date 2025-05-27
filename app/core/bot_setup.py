@@ -79,7 +79,18 @@ def add_admin_commands_to_bot(bot: Bot):
     bot.dispatcher.add_handler(
         BotButtonCommandHandler(
             filters=bot_extensions.filter.CallbackActionFilter(bot_handlers.CallbackAction.VIEW_DB.value),
-            callback=bot_handlers.database_record_review
+            callback=bot_handlers.get_data_callback
+        )
+    )
+
+    bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.FIND_DATA.value, filters=private_filter, callback=bot_handlers.find_data_command
+    ))
+
+    bot.dispatcher.add_handler(
+        BotButtonCommandHandler(
+            filters=bot_extensions.filter.CallbackActionFilter(bot_handlers.CallbackAction.FIND_DB.value),
+            callback=bot_handlers.find_data_callback
         )
     )
 

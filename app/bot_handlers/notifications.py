@@ -46,3 +46,37 @@ def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTy
             format_=format_,
             specific_logger=specific_logger
         )
+
+
+def send_notification_to_administrators(bot: Bot, text: str, inline_keyboard_markup=None,
+                                        parse_mode: str = None, format_=None):
+    """
+    Отправить оповещение для всех администраторов.
+
+    :param bot: VKTeams bot.
+    :param text: Текст уведомления.
+    :param inline_keyboard_markup: Встроенная в сообщение клавиатура.
+    :param parse_mode: Тип разбора текста.
+    :param format_: Описание форматирования текста.
+    """
+    with db.get_db_session() as session:
+        administrators = db.crud.get_all_records(session, db.Administrator)
+
+        # Получаем список email чатов, для отправки
+        emails = [
+            admin.user.chat.email
+            for admin in administrators
+        ]
+
+    # Если есть хотя бы один администратор
+    if emails:
+        notify_text = f"📫 Оповещение системы.\n\n{text}"
+        bot_extensions.send_text_to_chats(
+            bot=bot,
+            chat_ids=emails,
+            text=notify_text,
+            inline_keyboard_markup=inline_keyboard_markup,
+            parse_mode=parse_mode,
+            format_=format_,
+            specific_logger=None
+        )

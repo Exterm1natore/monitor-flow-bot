@@ -1,17 +1,21 @@
+import html
 from bot.bot import Bot, Event, EventType
 from bot.types import InlineKeyboardMarkup, KeyboardButton
-from app.utils import db_records_format
+from app.utils import db_records_format, date_and_time
 from app import db
 from .helpers import (
     catch_and_log_exceptions, administrator_access, send_available_database_tables,
     make_callback_data, parse_callback_data, send_invalid_command_format,
-    generate_db_records_page, send_database_table_fields
+    generate_db_records_page, send_database_table_fields, send_notification_types,
+    send_notification_description
 )
 from .constants import (
-    Commands, CallbackAction, GET_DATA_REFERENCE, DEL_CHAT_REFERENCE, FIND_DATA_REFERENCE
+    Commands, CallbackAction, GET_DATA_REFERENCE, DEL_CHAT_REFERENCE, FIND_DATA_REFERENCE,
+    ADD_NOTIFY_SUBSCRIBER_REFERENCE, DEL_NOTIFY_SUBSCRIBER_REFERENCE
 )
 from app.utils import text_format
 from app.core import bot_extensions
+from app.bot_handlers import notifications
 
 
 @catch_and_log_exceptions
@@ -42,6 +46,7 @@ def get_data_command(bot: Bot, event: Event):
     if len(text_items) == 2:
         if text_items[1] == '-list':
             send_available_database_tables(bot, event.from_chat)
+            return
         else:
             # Если введённой таблицы не существует
             if not db.model_exists_by_table_name(text_items[1]):
@@ -51,7 +56,7 @@ def get_data_command(bot: Bot, event: Event):
                 )
             else:
                 get_data_callback(bot, event, True, table_name=text_items[1])
-        return
+            return
 
     # В остальных случаях выводим, что формат команды неверный
     send_invalid_command_format(bot, event.from_chat, Commands.GET_DATA.value, event.msgId)
@@ -287,6 +292,162 @@ def find_data_callback(bot: Bot, event: Event, is_init: bool = False,
     bot_extensions.edit_text_or_raise(
         bot, event.from_chat, event.msgId, output_text, inline_keyboard_markup=markup
     )
+
+
+@catch_and_log_exceptions
+@administrator_access
+def add_notify_subscriber_command(bot: Bot, event: Event):
+    """
+    Обработать команду add_notify_subscriber.
+    Функция добавляет нового подписчика заданного типа уведомлений.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    text_items = text_format.normalize_whitespace(event.text).split()
+    if not text_items:
+        output_text = "⛔️ <b>Команда подписки чата на уведомления не распознана.</b>"
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
+        return
+
+    # Если нет аргументов в команде
+    if len(text_items) == 1:
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, text=ADD_NOTIFY_SUBSCRIBER_REFERENCE, parse_mode='HTML'
+        )
+        return
+
+    # Если 1 аргумент в команде
+    if len(text_items) == 2:
+        if text_items[1] == '-list':
+            send_notification_types(bot, event.from_chat)
+            return
+
+    # Если 2 аргумента в команде
+    if len(text_items) == 3:
+        if text_items[2] == '-desc':
+            send_notification_description(bot, event.from_chat, text_items[1])
+            return
+        else:
+            with db.get_db_session() as session:
+                chat = db.crud.find_chat(session, text_items[1])
+                notify_type = db.crud.find_notification_type(session, text_items[2])
+                subscriber = db.crud.find_notifications_subscriber_by_chat(session, chat, notify_type)
+
+                is_correct = False
+                if chat is None:
+                    output_text = "⛔️ <b>Чат с таким email не был найден в базе данных.</b>\n"
+                elif notify_type is None:
+                    output_text = "⛔️ <b>Такой тип уведомлений не был найден в базе данных.</b>\n"
+                elif subscriber:
+                    output_text = "✅ <b>Чат уже подписан на выбранный тип уведомлений.</b>\n"
+                else:
+                    db.crud.add_notification_subscriber(
+                        session, chat, notify_type, event.from_chat, date_and_time.get_current_date_moscow()
+                    )
+                    output_text = (f"✅ <b>Чат c email = '<i>{html.escape(chat.email)}</i>' "
+                                   f"успешно подписан уведомления типа '<i>{html.escape(notify_type.type)}</i>'.</b>\n")
+                    is_correct = True
+
+            # Направляем результат в текущий чат
+            bot_extensions.send_text_or_raise(
+                bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+            )
+
+            if is_correct:
+                # Сообщить администраторам о новом подписчике на уведомления
+                admin_notify_text = f"Чат с email = '{chat.email}' был подписан на уведомления типа '{notify_type.type}'."
+                notifications.send_notification_to_administrators(bot, admin_notify_text)
+
+                # Сообщить в подписавшийся чат о подписке
+                bot_extensions.send_text_or_raise(
+                    bot, chat.email, f"📩 Система: <b>Вы подписаны на уведомления типа "
+                                     f"'<i>{html.escape(notify_type.type)}</i>'</b>",
+                    parse_mode='HTML'
+                )
+            return
+
+    # В остальных случаях выводим, что формат команды неверный
+    send_invalid_command_format(bot, event.from_chat, Commands.ADD_NOTIFY_SUBSCRIBER.value, event.msgId)
+
+
+@catch_and_log_exceptions
+@administrator_access
+def del_notify_subscriber_command(bot: Bot, event: Event):
+    """
+    Обработать команду del_notify_subscriber.
+    Функция удаляет подписчика заданного типа уведомлений.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    text_items = text_format.normalize_whitespace(event.text).split()
+    if not text_items:
+        output_text = "⛔️ <b>Команда отписки чата на уведомления не распознана.</b>"
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
+        return
+
+    # Если нет аргументов в команде
+    if len(text_items) == 1:
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, text=DEL_NOTIFY_SUBSCRIBER_REFERENCE, parse_mode='HTML'
+        )
+        return
+
+    # Если 1 аргумент в команде
+    if len(text_items) == 2:
+        if text_items[1] == '-list':
+            send_notification_types(bot, event.from_chat)
+            return
+
+    # Если 2 аргумента в команде
+    if len(text_items) == 3:
+        if text_items[2] == '-desc':
+            send_notification_description(bot, event.from_chat, text_items[1])
+            return
+        else:
+            with db.get_db_session() as session:
+                chat = db.crud.find_chat(session, text_items[1])
+                notify_type = db.crud.find_notification_type(session, text_items[2])
+                subscriber = db.crud.find_notifications_subscriber_by_chat(session, chat, notify_type)
+
+                is_correct = False
+                if chat is None:
+                    output_text = "⛔️ <b>Чат с таким email не был найден в базе данных.</b>\n"
+                elif notify_type is None:
+                    output_text = "⛔️ <b>Такой тип уведомлений не был найден в базе данных.</b>\n"
+                elif not subscriber:
+                    output_text = "✅ <b>Чат не подписан на выбранный тип уведомлений.</b>\n"
+                else:
+                    db.crud.delete_notification_subscriber_by_data(session, chat, notify_type)
+                    output_text = (f"✅ <b>Чат c email = '<i>{html.escape(chat.email)}</i>' "
+                                   f"успешно отписан от уведомлений типа '<i>{html.escape(notify_type.type)}</i>'.</b>\n")
+                    is_correct = True
+
+            # Направляем результат в текущий чат
+            bot_extensions.send_text_or_raise(
+                bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+            )
+
+            if is_correct:
+                # Сообщить администраторам об отписке чата от уведомлений
+                admin_notify_text = f"Чат с email = '{chat.email}' был отписан от уведомлений типа '{notify_type.type}'."
+                notifications.send_notification_to_administrators(bot, admin_notify_text)
+
+                # Сообщить в отписавшийся чат об отписке
+                bot_extensions.send_text_or_raise(
+                    bot, chat.email, f"📩 Система: <b>Вы отписаны от уведомлений типа "
+                                     f"'<i>{html.escape(notify_type.type)}</i>'</b>",
+                    parse_mode='HTML'
+                )
+            return
+
+    # В остальных случаях выводим, что формат команды неверный
+    send_invalid_command_format(bot, event.from_chat, Commands.DEL_NOTIFY_SUBSCRIBER.value, event.msgId)
 
 
 @catch_and_log_exceptions

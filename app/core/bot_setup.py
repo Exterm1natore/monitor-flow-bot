@@ -95,5 +95,15 @@ def add_admin_commands_to_bot(bot: Bot):
     )
 
     bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.ADD_NOTIFY_SUBSCRIBER.value, filters=private_filter,
+        callback=bot_handlers.add_notify_subscriber_command
+    ))
+
+    bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.DEL_NOTIFY_SUBSCRIBER.value, filters=private_filter,
+        callback=bot_handlers.del_notify_subscriber_command
+    ))
+
+    bot.dispatcher.add_handler(CommandHandler(
         command=bot_handlers.Commands.DEL_CHAT.value, filters=private_filter, callback=bot_handlers.del_chat_command
     ))

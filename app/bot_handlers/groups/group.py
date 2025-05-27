@@ -8,7 +8,7 @@ from app.bot_handlers.helpers import (
     send_not_found_chat, catch_and_log_exceptions, administrator_access
 )
 from app.bot_handlers.constants import (
-    INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE, HELP_BASE_MESSAGE
+    Commands, INFO_REQUEST_MESSAGE, START_REQUEST_MESSAGE, HELP_BASE_MESSAGE
 )
 
 
@@ -25,7 +25,13 @@ def send_help_group(bot: Bot, event: Event, initial_text: str = ""):
     if not initial_text:
         output_text = f"{HELP_BASE_MESSAGE}\n\n"
     else:
-        output_text = f"{initial_text}"
+        output_text = f"{initial_text}\n\n"
+
+    output_text += "<b>--- Список команд группы:</b>\n\n"
+
+    output_text += (
+        f"🔹 /{Commands.START.value} - приветственное сообщение.\n"
+    )
 
     bot_extensions.send_long_text(
         bot, event.from_chat, output_text, parse_mode='HTML'

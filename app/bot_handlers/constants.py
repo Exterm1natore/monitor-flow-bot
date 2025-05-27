@@ -16,9 +16,9 @@ class Commands(Enum):
     # --- admin commands
     GET_DATA = "get_data"
     FIND_DATA = "find_data"
-    DEL_CHAT = "del_chat"
     ADD_NOTIFY_SUBSCRIBER = "add_notify_subscriber"
     DEL_NOTIFY_SUBSCRIBER = "del_notify_subscriber"
+    DEL_CHAT = "del_chat"
 
 
 @unique

@@ -219,8 +219,8 @@ def send_notification_types(bot: Bot, chat_id: str):
         types = db.crud.get_all_records(session, db.NotificationType)
         names = [t.type for t in types]
 
-    output_text = ("<b>Список всех типов уведомлений:</b>\n\n"
-                   f"[{html.escape(', '.join(names))}]")
+        output_text = ("<b>Список всех типов уведомлений:</b>\n\n"
+                       f"[{html.escape(', '.join(names))}]")
 
     bot_extensions.send_long_text(
         bot, chat_id, output_text, parse_mode='HTML'
@@ -276,11 +276,11 @@ def send_notification_description(bot: Bot, chat_id: str, type_name: str):
     with db.get_db_session() as session:
         notification_type = db.crud.find_notification_type(session, type_name)
 
-    if not notification_type:
-        output_text = f"⚠️ Тип уведомления '<i>{html.escape(type_name)}</i>' не существует."
-    else:
-        output_text = (f"Тип уведомления '<i>{html.escape(type_name)}</i>'.\n\n"
-                       f"Описание:\n\"{html.escape(notification_type.description)}\"")
+        if not notification_type:
+            output_text = f"⚠️ Тип уведомления '<i>{html.escape(type_name)}</i>' не существует."
+        else:
+            output_text = (f"Тип уведомления '<i>{html.escape(type_name)}</i>'.\n\n"
+                           f"Описание:\n\"{html.escape(notification_type.description)}\"")
 
     bot_extensions.send_long_text(
         bot, chat_id, output_text, parse_mode='HTML'

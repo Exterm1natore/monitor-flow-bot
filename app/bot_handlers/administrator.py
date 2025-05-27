@@ -135,8 +135,7 @@ def get_data_callback(bot: Bot, event: Event, is_init: bool = False,
     with db.get_db_session() as session:
         records = db.crud.get_records_range(session, model, start=start, end=end)
         total_records = db.crud.count_records(session, model)
-
-    output_text, markup = generate_db_records_page(records, total_records, config, callback, 'pg')
+        output_text, markup = generate_db_records_page(records, total_records, config, callback, 'pg')
 
     bot_extensions.edit_text_or_raise(
         bot, event.from_chat, event.msgId, output_text, inline_keyboard_markup=markup
@@ -279,6 +278,7 @@ def find_data_callback(bot: Bot, event: Event, is_init: bool = False,
     try:
         with db.get_db_session() as session:
             records = db.crud.find_records(session, model, field, field_val, partial_match=True)
+            output_text, markup = generate_db_records_page(records, len(records), config, callback, 'pg')
 
     except AttributeError:
         error_text = f"⛔️ Некорректный атрибут таблицы '{table}'."
@@ -286,8 +286,6 @@ def find_data_callback(bot: Bot, event: Event, is_init: bool = False,
             bot, event.from_chat, event.msgId, error_text, parse_mode='HTML'
         )
         return
-
-    output_text, markup = generate_db_records_page(records, len(records), config, callback, 'pg')
 
     bot_extensions.edit_text_or_raise(
         bot, event.from_chat, event.msgId, output_text, inline_keyboard_markup=markup
@@ -350,6 +348,8 @@ def add_notify_subscriber_command(bot: Bot, event: Event):
                     output_text = (f"✅ Чат c email = '<i>{html.escape(chat.email)}</i>' "
                                    f"успешно подписан уведомления типа '<i>{html.escape(notify_type.type)}</i>'.\n")
                     is_correct = True
+                    chat_email = chat.email
+                    notify_type_type = notify_type.type
 
             # Направляем результат в текущий чат
             bot_extensions.send_text_or_raise(
@@ -358,13 +358,13 @@ def add_notify_subscriber_command(bot: Bot, event: Event):
 
             if is_correct:
                 # Сообщить администраторам о новом подписчике на уведомления
-                admin_notify_text = f"Чат с email = '{chat.email}' был подписан на уведомления типа '{notify_type.type}'."
+                admin_notify_text = f"Чат с email = '{chat_email}' был подписан на уведомления типа '{notify_type_type}'."
                 notifications.send_notification_to_administrators(bot, admin_notify_text)
 
                 # Сообщить в подписавшийся чат о подписке
                 bot_extensions.send_text_or_raise(
                     bot, chat.email, f"📩 Система: Вы подписаны на уведомления типа "
-                                     f"'<i>{html.escape(notify_type.type)}</i>'",
+                                     f"'<i>{html.escape(notify_type_type)}</i>'",
                     parse_mode='HTML'
                 )
             return
@@ -427,6 +427,8 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
                     output_text = (f"✅ Чат c email = '<i>{html.escape(chat.email)}</i>' "
                                    f"успешно отписан от уведомлений типа '<i>{html.escape(notify_type.type)}</i>'.\n")
                     is_correct = True
+                    chat_email = chat.email
+                    notify_type_type = notify_type.type
 
             # Направляем результат в текущий чат
             bot_extensions.send_text_or_raise(
@@ -435,13 +437,13 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
 
             if is_correct:
                 # Сообщить администраторам об отписке чата от уведомлений
-                admin_notify_text = f"Чат с email = '{chat.email}' был отписан от уведомлений типа '{notify_type.type}'."
+                admin_notify_text = f"Чат с email = '{chat_email}' был отписан от уведомлений типа '{notify_type_type}'."
                 notifications.send_notification_to_administrators(bot, admin_notify_text)
 
                 # Сообщить в отписавшийся чат об отписке
                 bot_extensions.send_text_or_raise(
                     bot, chat.email, f"📩 Система: Вы отписаны от уведомлений типа "
-                                     f"'<i>{html.escape(notify_type.type)}</i>'",
+                                     f"'<i>{html.escape(notify_type_type)}</i>'",
                     parse_mode='HTML'
                 )
             return

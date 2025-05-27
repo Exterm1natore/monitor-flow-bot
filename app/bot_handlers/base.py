@@ -193,7 +193,7 @@ def notify_on_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда уведомлений не распознана.</b>"
+        output_text = "⛔️ Команда уведомлений не распознана."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
@@ -241,7 +241,7 @@ def notify_off_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда уведомлений не распознана.</b>"
+        output_text = "⛔️ Команда уведомлений не распознана."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )

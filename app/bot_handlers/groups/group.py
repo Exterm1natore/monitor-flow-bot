@@ -61,13 +61,13 @@ def register_group(bot: Bot, event: Event):
 
         # Если группа существует
         if chat.group is not None:
-            output_text = "⚠️ <b>Эта группа уже зарегистрирована в системе бота, повторная регистрация не требуется.</b>"
+            output_text = "⚠️ Эта группа уже зарегистрирована в системе бота, повторная регистрация не требуется."
         else:
             title: str = event.data['chat']['title']
 
             db.crud.create_group(session, chat, title)
 
-            output_text = ("✅ <b>Группа успешно зарегистрированы в системе бота.</b>\n\n"
+            output_text = ("✅ Группа успешно зарегистрированы в системе бота.\n\n"
                            f"{INFO_REQUEST_MESSAGE}")
 
     # Отправляем сообщение в текущий чат
@@ -103,7 +103,7 @@ def delete_group_registration(bot: Bot, event: Event):
             db.crud.delete_chat(session, chat)
 
     # Отправляем сообщение в текущий чат
-    output_text = ("✅ <b>Группа не зарегистрированы в системе бота.</b>\n\n"
+    output_text = ("✅ Группа не зарегистрированы в системе бота.\n\n"
                    f"{START_REQUEST_MESSAGE}\n\n"
                    f"{INFO_REQUEST_MESSAGE}")
     bot_extensions.send_text_or_raise(
@@ -131,14 +131,14 @@ def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
         if notification_type is None:
-            output_text = f"⚠️ <b>Такого типа уведомления не существует.</b>"
+            output_text = f"⚠️ Такого типа уведомления не существует."
         elif any(item.notification_type == notification_type.id for item in chat.notification_subscribers):
-            output_text = f"✅ <b>Группа уже подписана на тип уведомления '<i>{html.escape(notification_type_name)}</i>'.</b>"
+            output_text = f"✅ Группа уже подписана на тип уведомления '{html.escape(notification_type_name)}'."
         else:
             db.crud.add_notification_subscriber(
                 session, chat, notification_type, event.message_author['userId'], date_and_time.get_current_date_moscow()
             )
-            output_text = f"✅ <b>Группа успешно подписана на уведомления типа '<i>{html.escape(notification_type.type)}</i>'</b>"
+            output_text = f"✅ Группа успешно подписана на уведомления типа '{html.escape(notification_type.type)}'."
 
     bot_extensions.send_text_or_raise(
         bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
@@ -165,12 +165,12 @@ def group_unsubscribe_notifications(bot: Bot, event: Event, notification_type_na
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
         if notification_type is None:
-            output_text = f"⚠️ <b>Такого типа уведомления не существует.</b>"
+            output_text = f"⚠️ Такого типа уведомления не существует."
         elif all(item.notification_type != notification_type.id for item in chat.notification_subscribers):
-            output_text = f"✅ <b>Группа не подписана на тип уведомления '<i>{html.escape(notification_type_name)}</i>'.</b>"
+            output_text = f"✅ Группа не подписана на тип уведомления '{html.escape(notification_type_name)}'."
         else:
             db.crud.delete_notification_subscriber_by_data(session, chat, notification_type)
-            output_text = f"✅ <b>Группа отписана от уведомлений типа '<i>{html.escape(notification_type_name)}</i>'.</b>"
+            output_text = f"✅ Группа отписана от уведомлений типа '{html.escape(notification_type_name)}'."
 
     bot_extensions.send_text_or_raise(
         bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'

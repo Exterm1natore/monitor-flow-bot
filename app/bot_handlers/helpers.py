@@ -54,7 +54,7 @@ def administrator_access(func):
 
                 # Если чат не существует или пользователь не является администратором
                 if chat is None or user is None or not is_admin:
-                    raise PermissionError("⛔️ <b>Нет доступа для выполнения команды.</b>\n"
+                    raise PermissionError("⛔️ Нет доступа для выполнения команды.\n"
                                           "Вы не администратор.")
             else:
                 response = bot.get_chat_admins(event.from_chat)
@@ -67,10 +67,10 @@ def administrator_access(func):
                     is_admin = any(user['userId'] == event.message_author['userId'] for user in response_data.get('admins', []))
                     'admins'
                     if not is_admin:
-                        raise PermissionError("⛔️ <b>Нет доступа для выполнения команды.</b>\n"
+                        raise PermissionError("⛔️ Нет доступа для выполнения команды.\n"
                                               "Вы не администратор группы.")
                 else:
-                    error_text = "❌ <b>Нет возможности выполнить команду.</b>"
+                    error_text = "❌ Нет возможности выполнить команду."
 
                     desc_error: str = response_data.get('description', "")
 
@@ -87,7 +87,7 @@ def administrator_access(func):
             )
             return
         except Exception as other_error:
-            error_text = "❌ <b>Нет возможности выполнить команду.</b>"
+            error_text = "❌ Нет возможности выполнить команду."
             error_text += f"\nПричина: {str(other_error)}"
             logging.getLogger(__name__).exception(other_error)
 
@@ -137,7 +137,7 @@ def catch_and_log_exceptions(func):
 
             # Если оба объекта найдены — отправляем сообщение
             if bot and event:
-                exception_text = "❌ <b>Произошла непредвиденная ошибка.</b>"
+                exception_text = "❌ Произошла непредвиденная ошибка."
                 # Если кнопка
                 if event.type == EventType.CALLBACK_QUERY.value:
                     try:
@@ -179,11 +179,11 @@ def send_not_found_chat(bot: Bot, chat_id: str, chat_type: str):
     """
     # Если приватный чат
     if chat_type == ChatType.PRIVATE.value:
-        not_found_chat_text = ("⚠️ <b>Вас нет в моих списках зарегистрированных пользователей.</b>\n"
+        not_found_chat_text = ("⚠️ Вас нет в моих списках зарегистрированных пользователей.\n"
                                "Чтобы начать работу, Вы должны быть зарегистрированы в моей системе.\n\n"
                                f"{INFO_REQUEST_MESSAGE}")
     else:
-        not_found_chat_text = ("⚠️ <b>Этого чата нет в моих списках зарегистрированных чатов</b>\n"
+        not_found_chat_text = ("⚠️ Этого чата нет в моих списках зарегистрированных чатов.\n"
                                "Чтобы начать работу, чат должен быть добавлен в мои списки.\n\n"
                                f"{INFO_REQUEST_MESSAGE}")
 
@@ -201,8 +201,8 @@ def send_invalid_command_format(bot: Bot, chat_id: str, command: str, msg_id: in
     :param command: Название команды (без символа '/').
     :param msg_id: ID сообщения, на которое отправляется ответ (опционально).
     """
-    output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
-                   f"Чтобы узнать какой формат необходим, отправьте мне <i>/{command}</i>")
+    output_text = ("⛔️ Некорректный формат команды.\n"
+                   f"Чтобы узнать какой формат необходим, отправьте мне /{command} ")
     bot_extensions.send_text_or_raise(
         bot, chat_id, output_text, reply_msg_id=msg_id, parse_mode='HTML'
     )
@@ -219,7 +219,7 @@ def send_notification_types(bot: Bot, chat_id: str):
         types = db.crud.get_all_records(session, db.NotificationType)
         names = [t.type for t in types]
 
-    output_text = ("<b>Список всех типов уведомлений:</b>\n"
+    output_text = ("<b>Список всех типов уведомлений:</b>\n\n"
                    f"[{html.escape(', '.join(names))}]")
 
     bot_extensions.send_long_text(
@@ -246,18 +246,18 @@ def send_notification_types_access(bot: Bot, chat_id: str, to_subscribe: bool):
                 types = db.crud.find_unsubscribed_notification_types(session, chat)
 
             names = [t.type for t in types]
-            output_text = ("<b>Список типов уведомлений, на которые нет подписки:</b>\n"
+            output_text = ("<b>Список типов уведомлений, на которые нет подписки:</b>\n\n"
                            f"{'[' + html.escape(', '.join(names)) + ']' if names else 'Нет доступных.'}")
         else:
             if chat is None:
-                output_text = ("⚠️ <b>Вы не зарегистрированы.</b>\n"
+                output_text = ("⚠️ Вы не зарегистрированы.\n"
                                "У вас нет ни одной подписки на уведомления.")
             else:
                 names = [
                     ns.notification_type_model.type
                     for ns in chat.notification_subscribers
                 ]
-                output_text = ("<b>Список типов уведомлений, на которые есть подписка:</b>\n"
+                output_text = ("<b>Список типов уведомлений, на которые есть подписка:</b>\n\n"
                                f"{'[' + html.escape(', '.join(names)) + ']' if names else 'Нет доступных'}")
 
     bot_extensions.send_long_text(
@@ -277,9 +277,9 @@ def send_notification_description(bot: Bot, chat_id: str, type_name: str):
         notification_type = db.crud.find_notification_type(session, type_name)
 
     if not notification_type:
-        output_text = f"⚠️ <b>Тип уведомления '<i>{html.escape(type_name)}</i>' не существует.</b>"
+        output_text = f"⚠️ Тип уведомления '<i>{html.escape(type_name)}</i>' не существует."
     else:
-        output_text = (f"<b>Тип уведомления '<i>{html.escape(type_name)}</i>'</b>\n"
+        output_text = (f"Тип уведомления '<i>{html.escape(type_name)}</i>'.\n\n"
                        f"Описание:\n\"{html.escape(notification_type.description)}\"")
 
     bot_extensions.send_long_text(
@@ -296,7 +296,7 @@ def send_available_database_tables(bot: Bot, chat_id: str):
     """
     tables: List[str] = list(db.models.Base.metadata.tables.keys())
 
-    output_text = ("<b>Список доступных таблиц базы данных:</b>\n"
+    output_text = ("<b>Список доступных таблиц базы данных:</b>\n\n"
                    f"{'[' + html.escape(', '.join(tables)) + ']' if tables else 'Нет доступных'}")
 
     bot_extensions.send_long_text(
@@ -315,7 +315,7 @@ def send_database_table_fields(bot: Bot, chat_id: str, table_name: str, reply_ms
     :param reply_msd_id: Ответить на сообщение с заданным ID, если таблица не найдена.
     """
     if not db.model_exists_by_table_name(table_name):
-        not_found_text = "⛔️ <b>Таблицы с таким названием не существует.</b>"
+        not_found_text = "⛔️ Таблицы с таким названием не существует."
         bot_extensions.send_text_or_raise(
             bot, chat_id, not_found_text, reply_msg_id=reply_msd_id, parse_mode='HTML'
         )

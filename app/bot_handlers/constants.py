@@ -39,9 +39,9 @@ class NotificationTypes(Enum):
 
 
 INFO_REQUEST_MESSAGE = ("❗️ Чтобы получить более подробную информацию о работе со мной и список доступных возможностей, "
-                        f"отправьте мне команду <i>/{Commands.HELP.value}</i>.")
+                        f"отправьте мне команду /{Commands.HELP.value} ")
 START_REQUEST_MESSAGE = ("❗️ Чтобы снова зарегистрироваться в системе, "
-                         f"отправьте мне команду <i>/{Commands.REGISTER.value}</i>")
+                         f"отправьте мне команду /{Commands.REGISTER.value} ")
 
 NOTIFY_ON_REFERENCE = (f"<b>Формат: /{Commands.NOTIFY_ON.value} [option] ...</b>\n\n"
                        "- Команда предназначена для подписки на определённый тип уведомления.\n\n"

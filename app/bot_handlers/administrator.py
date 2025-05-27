@@ -29,7 +29,7 @@ def get_data_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда получения списка из базы данных не распознана.</b>"
+        output_text = "⛔️ Команда получения списка из базы данных не распознана."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
@@ -50,7 +50,7 @@ def get_data_command(bot: Bot, event: Event):
         else:
             # Если введённой таблицы не существует
             if not db.model_exists_by_table_name(text_items[1]):
-                not_found_text = "⛔️ <b>Таблицы с таким названием не существует.</b>"
+                not_found_text = "⛔️ Таблицы с таким названием не существует."
                 bot_extensions.send_text_or_raise(
                     bot, event.from_chat, not_found_text, reply_msg_id=event.msgId, parse_mode='HTML'
                 )
@@ -114,7 +114,7 @@ def get_data_callback(bot: Bot, event: Event, is_init: bool = False,
         page: int = cb['pg']
         table: str = cb['tb']
     except Exception:
-        text = "⛔️ <b>Эта кнопка больше не действует.</b>"
+        text = "⛔️ Эта кнопка больше не действует."
         bot_extensions.edit_text_or_raise(
             bot, event.from_chat, event.msgId, text, inline_keyboard_markup=None
         )
@@ -122,9 +122,9 @@ def get_data_callback(bot: Bot, event: Event, is_init: bool = False,
 
     config = db_records_format.find_config_model_format(table)
     if not config:
-        text = f"⛔️ <b>Таблица '{table}' не поддерживается.</b>"
+        text = f"⛔️ Таблица '{table}' не поддерживается."
         bot_extensions.edit_text_or_raise(
-            bot, event.from_chat, event.msgId, text, parse_mode='HTML'
+            bot, event.from_chat, event.msgId, text
         )
         return
 
@@ -155,7 +155,7 @@ def find_data_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда поиска по списку базы данных не распознана.</b>"
+        output_text = "⛔️ Команда поиска по списку базы данных не распознана."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
@@ -177,7 +177,7 @@ def find_data_command(bot: Bot, event: Event):
     # Проверяем существование таблицы
     table_name = text_items[1]
     if not db.model_exists_by_table_name(table_name):
-        not_found_text = "⛔️ <b>Таблицы с таким названием не существует.</b>"
+        not_found_text = "⛔️ Таблицы с таким названием не существует."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, not_found_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
@@ -260,7 +260,7 @@ def find_data_callback(bot: Bot, event: Event, is_init: bool = False,
         field: str = cb['f']
         field_val: str = cb['val']
     except Exception:
-        text = "⛔️ <b>Эта кнопка больше не действует.</b>"
+        text = "⛔️ Эта кнопка больше не действует."
         bot_extensions.edit_text_or_raise(
             bot, event.from_chat, event.msgId, text, inline_keyboard_markup=None
         )
@@ -268,7 +268,7 @@ def find_data_callback(bot: Bot, event: Event, is_init: bool = False,
 
     config = db_records_format.find_config_model_format(table)
     if not config:
-        text = f"⛔️ <b>Таблица '{table}' не поддерживается.</b>"
+        text = f"⛔️ Таблица '{table}' не поддерживается."
         bot_extensions.edit_text_or_raise(
             bot, event.from_chat, event.msgId, text, parse_mode='HTML'
         )
@@ -281,7 +281,7 @@ def find_data_callback(bot: Bot, event: Event, is_init: bool = False,
             records = db.crud.find_records(session, model, field, field_val, partial_match=True)
 
     except AttributeError:
-        error_text = f"⛔️ <b>Некорректный атрибут таблицы '{table}'.</b>"
+        error_text = f"⛔️ Некорректный атрибут таблицы '{table}'."
         bot_extensions.edit_text_or_raise(
             bot, event.from_chat, event.msgId, error_text, parse_mode='HTML'
         )
@@ -306,7 +306,7 @@ def add_notify_subscriber_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда подписки чата на уведомления не распознана.</b>"
+        output_text = "⛔️ Команда подписки чата на уведомления не распознана."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
@@ -338,17 +338,17 @@ def add_notify_subscriber_command(bot: Bot, event: Event):
 
                 is_correct = False
                 if chat is None:
-                    output_text = "⛔️ <b>Чат с таким email не был найден в базе данных.</b>\n"
+                    output_text = "⛔️ Чат с таким email не был найден в базе данных.\n"
                 elif notify_type is None:
-                    output_text = "⛔️ <b>Такой тип уведомлений не был найден в базе данных.</b>\n"
+                    output_text = "⛔️ Такой тип уведомлений не был найден в базе данных.\n"
                 elif subscriber:
-                    output_text = "✅ <b>Чат уже подписан на выбранный тип уведомлений.</b>\n"
+                    output_text = "✅ Чат уже подписан на выбранный тип уведомлений.\n"
                 else:
                     db.crud.add_notification_subscriber(
                         session, chat, notify_type, event.from_chat, date_and_time.get_current_date_moscow()
                     )
-                    output_text = (f"✅ <b>Чат c email = '<i>{html.escape(chat.email)}</i>' "
-                                   f"успешно подписан уведомления типа '<i>{html.escape(notify_type.type)}</i>'.</b>\n")
+                    output_text = (f"✅ Чат c email = '<i>{html.escape(chat.email)}</i>' "
+                                   f"успешно подписан уведомления типа '<i>{html.escape(notify_type.type)}</i>'.\n")
                     is_correct = True
 
             # Направляем результат в текущий чат
@@ -363,8 +363,8 @@ def add_notify_subscriber_command(bot: Bot, event: Event):
 
                 # Сообщить в подписавшийся чат о подписке
                 bot_extensions.send_text_or_raise(
-                    bot, chat.email, f"📩 Система: <b>Вы подписаны на уведомления типа "
-                                     f"'<i>{html.escape(notify_type.type)}</i>'</b>",
+                    bot, chat.email, f"📩 Система: Вы подписаны на уведомления типа "
+                                     f"'<i>{html.escape(notify_type.type)}</i>'",
                     parse_mode='HTML'
                 )
             return
@@ -385,7 +385,7 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда отписки чата на уведомления не распознана.</b>"
+        output_text = "⛔️ Команда отписки чата на уведомления не распознана."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
@@ -417,15 +417,15 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
 
                 is_correct = False
                 if chat is None:
-                    output_text = "⛔️ <b>Чат с таким email не был найден в базе данных.</b>\n"
+                    output_text = "⛔️ Чат с таким email не был найден в базе данных.\n"
                 elif notify_type is None:
-                    output_text = "⛔️ <b>Такой тип уведомлений не был найден в базе данных.</b>\n"
+                    output_text = "⛔️ Такой тип уведомлений не был найден в базе данных.\n"
                 elif not subscriber:
-                    output_text = "✅ <b>Чат не подписан на выбранный тип уведомлений.</b>\n"
+                    output_text = "✅ Чат не подписан на выбранный тип уведомлений.\n"
                 else:
                     db.crud.delete_notification_subscriber_by_data(session, chat, notify_type)
-                    output_text = (f"✅ <b>Чат c email = '<i>{html.escape(chat.email)}</i>' "
-                                   f"успешно отписан от уведомлений типа '<i>{html.escape(notify_type.type)}</i>'.</b>\n")
+                    output_text = (f"✅ Чат c email = '<i>{html.escape(chat.email)}</i>' "
+                                   f"успешно отписан от уведомлений типа '<i>{html.escape(notify_type.type)}</i>'.\n")
                     is_correct = True
 
             # Направляем результат в текущий чат
@@ -440,8 +440,8 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
 
                 # Сообщить в отписавшийся чат об отписке
                 bot_extensions.send_text_or_raise(
-                    bot, chat.email, f"📩 Система: <b>Вы отписаны от уведомлений типа "
-                                     f"'<i>{html.escape(notify_type.type)}</i>'</b>",
+                    bot, chat.email, f"📩 Система: Вы отписаны от уведомлений типа "
+                                     f"'<i>{html.escape(notify_type.type)}</i>'",
                     parse_mode='HTML'
                 )
             return
@@ -462,7 +462,7 @@ def del_chat_command(bot: Bot, event: Event):
     """
     text_items = text_format.normalize_whitespace(event.text).split()
     if not text_items:
-        output_text = "⛔️ <b>Команда удаления чата не распознана.</b>"
+        output_text = "⛔️ Команда удаления чата не распознана."
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
@@ -481,9 +481,9 @@ def del_chat_command(bot: Bot, event: Event):
             result = db.crud.delete_chat_by_data(session, text_items[1])
 
         if result:
-            output_text = "✅ <b>Чат успешно удалён из базы данных.</b>"
+            output_text = f"✅ Чат c email = '{html.escape(text_items[1])}' успешно удалён из базы данных."
         else:
-            output_text = "⛔️ <b>Чат с таким email не был найден в базе данных.</b>"
+            output_text = "⛔️ Чат с таким email не был найден в базе данных."
 
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'

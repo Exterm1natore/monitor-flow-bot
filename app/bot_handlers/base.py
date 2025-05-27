@@ -8,7 +8,7 @@ from app import db
 from . import users, groups
 from .helpers import (
     send_not_found_chat, send_notification_types, send_notification_types_access,
-    send_notification_description, catch_and_log_exceptions
+    send_notification_description, catch_and_log_exceptions, send_invalid_command_format
 )
 from .constants import (
     Commands, INFO_REQUEST_MESSAGE, NOTIFY_ON_REFERENCE, NOTIFY_OFF_REFERENCE,
@@ -211,15 +211,17 @@ def notify_on_command(bot: Bot, event: Event):
     if len(text_items) == 2:
         if text_items[1] == '-list':
             send_notification_types(bot, event.from_chat)
+            return
         elif text_items[1] == '-access':
             send_notification_types_access(bot, event.from_chat, True)
+            return
         else:
             # Если приватный тип чата
             if event.chat_type == ChatType.PRIVATE.value:
                 users.user_subscribe_notifications(bot, event, text_items[1])
             else:
                 groups.group_subscribe_notifications(bot, event, text_items[1])
-        return
+            return
 
     # Если 2 аргумента
     if len(text_items) == 3 and text_items[2] == '-desc':
@@ -227,11 +229,7 @@ def notify_on_command(bot: Bot, event: Event):
         return
 
     # В остальных случаях выводим, что формат команды неверный
-    output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
-                   f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.NOTIFY_ON.value}</i>")
-    bot_extensions.send_text_or_raise(
-        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
-    )
+    send_invalid_command_format(bot, event.from_chat, Commands.NOTIFY_ON.value, event.msgId)
 
 
 @catch_and_log_exceptions
@@ -261,15 +259,17 @@ def notify_off_command(bot: Bot, event: Event):
     if len(text_items) == 2:
         if text_items[1] == '-list':
             send_notification_types(bot, event.from_chat)
+            return
         elif text_items[1] == '-access':
             send_notification_types_access(bot, event.from_chat, False)
+            return
         else:
             # Если приватный тип чата
             if event.chat_type == ChatType.PRIVATE.value:
                 users.user_unsubscribe_notifications(bot, event, text_items[1])
             else:
                 groups.group_unsubscribe_notifications(bot, event, text_items[1])
-        return
+            return
 
     # Если 2 аргумента
     if len(text_items) == 3 and text_items[2] == '-desc':
@@ -277,11 +277,7 @@ def notify_off_command(bot: Bot, event: Event):
         return
 
     # В остальных случаях выводим, что формат команды неверный
-    output_text = ("⛔️ <b>Некорректный формат команды.</b>\n"
-                   f"Чтобы узнать какой формат необходим, отправьте мне <i>/{Commands.NOTIFY_OFF.value}</i>")
-    bot_extensions.send_text_or_raise(
-        bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
-    )
+    send_invalid_command_format(bot, event.from_chat, Commands.NOTIFY_OFF.value, event.msgId)
 
 
 @catch_and_log_exceptions

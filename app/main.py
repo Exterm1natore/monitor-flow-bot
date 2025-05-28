@@ -1,11 +1,11 @@
 from app.core import bot_setup, logging_setup
-
+from app import api
 
 # --- Enable logging
 logging_setup.enable_logging("ERROR")
 
 
-if __name__ == "__main__":
+def main():
     # --- Объект бота ---
     app = bot_setup.app
 
@@ -20,3 +20,11 @@ if __name__ == "__main__":
 
     app.start_polling()
     app.idle()
+
+
+if __name__ == "__main__":
+    # --- Run server ---
+    api.run_zabbix_webhook_handler_server()
+
+    # --- Start bot ---
+    main()

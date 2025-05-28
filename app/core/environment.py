@@ -51,3 +51,13 @@ BOT_TOKEN = os.environ["VKTEAMS_BOT_TOKEN"]
 DB_PATH = os.environ["DB_PATH"]
 
 # --------------------------------------------------------------------------------------------------
+
+# --------------------------------------- Данные запуска uvicorn сервера FastAPI -------------------
+
+ENDPOINT_ZABBIX_WEBHOOKS = os.environ["ENDPOINT_ZABBIX_WEBHOOKS"]
+
+API_HOST = os.environ["API_HOST"]
+
+API_PORT = int(os.environ["API_PORT"])
+
+# --------------------------------------------------------------------------------------------------

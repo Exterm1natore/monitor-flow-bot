@@ -184,7 +184,17 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
             admin_request_text = (f"Пользователь с email = '{event.from_chat}' подписался на "
                                   f"уведомления типа '{notification_type.type}'.")
         else:
-            raise ValueError("⛔ Unprocessed case")
+            is_subscribe = True
+            _, model_fields, _ = db_records_format.find_config_model_format(db.get_tablename_by_model(db.User))
+            record_format = db_records_format.format_for_chat(chat.user, model_fields=model_fields)
+            admin_request_text = (f"❗️ Пользователь отправил запрос подписки на уведомления типа '{notification_type.type}'.\n\n"
+                                  f"Данные пользователя:\n"
+                                  f"{record_format}\n\n"
+                                  f"Необходимо вручную подписать пользователя не администратора на заданный тип уведомлений.\n"
+                                  f"Чтобы подписать пользователя воспользуйтесь командой /{Commands.ADD_NOTIFY_SUBSCRIBER.value} ")
+
+            output_text = (f"❇️ Запрос подписки на уведомления типа '{html.escape(notification_type.type)}' отправлен.\n"
+                           f"Ожидайте, когда его одобрят. После одобрения вам придёт сообщение об успешной подписке.")
 
     bot_extensions.send_text_or_raise(
         bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'

@@ -31,7 +31,7 @@ class BotChatLoggingHandler(logging.Handler):
 
             msg = self.format(record)
             notifications.send_notification_to_subscribers(
-                self.bot, constants.NotificationTypes.SYSTEM, msg, specific_logger=self._internal_logger
+                self.bot, constants.NotificationTypes.SYSTEM, msg, logger=self._internal_logger
             )
 
         except Exception as e:

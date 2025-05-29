@@ -61,3 +61,11 @@ API_HOST = os.environ["API_HOST"]
 API_PORT = int(os.environ["API_PORT"])
 
 # --------------------------------------------------------------------------------------------------
+
+# --------------------------------------- Данные для работы с потоками -----------------------------
+
+EXECUTOR_CPU_LIMIT = os.environ["EXECUTOR_CPU_LIMIT"]
+EXECUTOR_SCALING_FACTOR = os.environ["EXECUTOR_SCALING_FACTOR"]
+EXECUTOR_MAX_HARD_CAP = os.environ["EXECUTOR_MAX_HARD_CAP"]
+
+# --------------------------------------------------------------------------------------------------

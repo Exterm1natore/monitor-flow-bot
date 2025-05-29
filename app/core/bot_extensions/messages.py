@@ -1,11 +1,14 @@
 from typing import List, Optional
 from requests import Response
 import time
-from concurrent.futures import ThreadPoolExecutor
 import logging
 from bot.bot import Bot
 from bot.constant import ChatType
 from app.utils import text_format
+from app.core import executor_pool
+from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from ratelimiter import RateLimiter
+from pybreaker import CircuitBreaker, CircuitBreakerError
 
 
 class MessageDeliveryError(Exception):
@@ -174,56 +177,87 @@ def send_long_text(bot: Bot, chat_id: str, text: str, max_len_text: int = 4096, 
     )
 
 
-def send_text_to_chats(
-        bot: Bot,
-        chat_ids: List[str],
-        text: str,
-        inline_keyboard_markup=None,
-        parse_mode=None,
-        format_=None,
-        max_workers: int = 5,
-        wait_for_completion: bool = False,
-        specific_logger: logging.Logger = None
-):
+def broadcast_to_chats(
+    *,
+    bot,
+    chat_ids: List[str],
+    text: str,
+    inline_keyboard_markup=None,
+    parse_mode: Optional[str] = None,
+    format_=None,
+    wait_for_completion: bool = False,
+    logger: Optional[logging.Logger] = None,
+    suppress_notification_log: bool = False,
+    rate_limiter: RateLimiter = RateLimiter(max_calls=15, period=1),
+    breaker: CircuitBreaker = CircuitBreaker(fail_max=5, reset_timeout=60)
+) -> None:
     """
-    Отправить сообщение в список чатов пользователей.
+    Отправить сообщение в заданный список чатов.
+    Используется многопоточность.
+    Учитывается очередь отправки в секунду.
+    При заданном количестве ошибок подряд, отправки приостановится на заданный промежуток времени.
 
     :param bot: Объект Bot VKTeams.
-    :param chat_ids: Список чатов, в которые отправляется сообщение.
-    :param text: Текст сообщения.
-    :param inline_keyboard_markup: Встроенная в сообщение клавиатура.
+    :param chat_ids: Список ID чатов, в которые направляется сообщение.
+    :param text: Отправляемое сообщение.
+    :param inline_keyboard_markup: Встроенная клавиатура.
     :param parse_mode: Тип разбора текста.
-    :param format_: Описание форматирования текста.
-    :param max_workers: Число потоков в пуле.
-    :param wait_for_completion: Дождаться завершения всех задач.
-    :param specific_logger: Специальный логгер, который будет использоваться вместо глобального.
+    :param format_: Формат текста (передаётся раздельно с parse_mod).
+    :param wait_for_completion: Ожидать ли завершения отправки всех сообщений.
+    :param logger: Внешний логгер.
+    :param suppress_notification_log: Подавлять ли ошибки отправки сообщений.
+    :param rate_limiter: Количество сообщений за период секунд.
+    :param breaker: Остановка после количества ошибок подряд и время восстановления.
     """
+    logger = logger or logging.getLogger(__name__)
+
+    def _do_send(chat_id: str):
+        """Фактический вызов API."""
+        send_long_text(
+            bot=bot,
+            chat_id=chat_id,
+            text=text,
+            reply_msg_id=None,
+            inline_keyboard_markup=inline_keyboard_markup,
+            parse_mode=parse_mode,
+            format_=format_
+        )
+
+    # оборачиваем в retry + rate limiter + circuit breaker
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True
+    )
+    def _protected_send(chat_id: str):
+        # rate limit
+        with rate_limiter:
+            # circuit breaker
+            return breaker.call(_do_send, chat_id)
+
     def safe_send(chat_id: str):
         try:
-            # Отправка сообщения в чат
-            send_long_text(
-                bot=bot,
-                chat_id=chat_id,
-                text=text,
-                reply_msg_id=None,
-                inline_keyboard_markup=inline_keyboard_markup,
-                parse_mode=parse_mode,
-                format_=format_
-            )
-
+            _protected_send(chat_id)
+        except CircuitBreakerError as cb_err:
+            logger.error(f"⚠️ Circuit open, skipping chat {chat_id}: {cb_err}")
+        except RetryError as retry_err:
+            logger.error(f"❌ Retry failed for chat {chat_id}: {retry_err}")
+        except MessageDeliveryError as delivery_err:
+            if not suppress_notification_log:
+                logger.error(delivery_err)
         except Exception as e:
-            err_message = f"❌ Error in {send_text_to_chats.__name__}: {str(e)}"
-            if specific_logger is not None:
-                specific_logger.error(
-                    msg=err_message
-                )
-            else:
-                logging.getLogger(__name__).error(
-                    msg=err_message
-                )
+            err_message = f"❌ Unexpected error sending to {chat_id}: {e}"
+            if not suppress_notification_log:
+                logger.exception(err_message)
 
-    executor = ThreadPoolExecutor(max_workers=max_workers)
-    for i, item_chat_id in enumerate(chat_ids, start=1):
-        executor.submit(safe_send, item_chat_id)
+    executor = executor_pool.get_executor()
 
-    executor.shutdown(wait=wait_for_completion)
+    futures = []
+    for cid in chat_ids:
+        future = executor.submit(safe_send, cid)
+        futures.append(future)
+
+    if wait_for_completion:
+        # Ждём завершения всех задач
+        for future in futures:
+            future.result()

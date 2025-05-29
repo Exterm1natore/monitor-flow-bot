@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import logging
 from bot.bot import Bot
 from .constants import NotificationTypes
@@ -8,17 +8,17 @@ from app import db
 
 def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTypes, text: str,
                                      inline_keyboard_markup=None, parse_mode: str = None, format_=None,
-                                     specific_logger: logging.Logger = None):
+                                     logger: Optional[logging.Logger] = None):
     """
-    Отправить уведомление определённого типа всем подписчикам.
+    Отправить уведомление в чаты, подписанные за данный тип уведомлений.
 
     :param bot: VKTeams bot.
     :param notification_type: Тип уведомления.
     :param text: Текст уведомления.
     :param inline_keyboard_markup: Встроенная в сообщение клавиатура.
     :param parse_mode: Тип разбора текста.
-    :param format_: Описание форматирования текста.
-    :param specific_logger: Специальный логгер, который будет использоваться вместо глобального.
+    :param format_: Описание форматирования текста (передаётся раздельно с parse_mod).
+    :param logger: Внешний логгер.
     """
     with db.get_db_session() as session:
         notify_type = db.crud.find_notification_type(session, notification_type.value)
@@ -37,14 +37,16 @@ def send_notification_to_subscribers(bot: Bot, notification_type: NotificationTy
     # Если есть хотя-бы один подписчик отправляем уведомление
     if emails:
         notify_text = f"🔔 Новое уведомление.\n\n{text}"
-        bot_extensions.send_text_to_chats(
+        bot_extensions.broadcast_to_chats(
             bot=bot,
             chat_ids=emails,
             text=notify_text,
             inline_keyboard_markup=inline_keyboard_markup,
             parse_mode=parse_mode,
             format_=format_,
-            specific_logger=specific_logger
+            wait_for_completion=False,
+            logger=logger,
+            suppress_notification_log=False,
         )
 
 
@@ -71,12 +73,14 @@ def send_notification_to_administrators(bot: Bot, text: str, inline_keyboard_mar
     # Если есть хотя бы один администратор
     if emails:
         notify_text = f"📫 Оповещение системы.\n\n{text}"
-        bot_extensions.send_text_to_chats(
+        bot_extensions.broadcast_to_chats(
             bot=bot,
             chat_ids=emails,
             text=notify_text,
             inline_keyboard_markup=inline_keyboard_markup,
             parse_mode=parse_mode,
             format_=format_,
-            specific_logger=None
+            wait_for_completion=False,
+            logger=None,
+            suppress_notification_log=False,
         )

@@ -1,9 +1,67 @@
-from typing import List, Type, Optional, Union, Any
+from typing import List, Type, Optional, Union, Any, Dict
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
-from sqlalchemy import select, func, String, Text
+from sqlalchemy import select, func, String, Text, DateTime, and_
 from app.db.base import T
+from datetime import datetime
+import dateutil.parser
+
+
+def _build_condition(
+    model: Type[T],
+    field: Union[str, InstrumentedAttribute],
+    value: Any,
+    partial_match: bool = False
+):
+    """
+    Формирует SQLAlchemy-условие для одного поля модели.
+
+    Поддерживает:
+    - partial_match=True для String/Text и Datetime (по дате).
+    - Точное сравнение для всех типов.
+
+    :param model: ORM-модель.
+    :param field: Название или атрибут поля.
+    :param value: Значение.
+    :param partial_match: Для строк — LIKE, для datetime — по дате.
+    :return: Сформированное условие.
+    """
+    # получаем InstrumentedAttribute
+    if isinstance(field, InstrumentedAttribute):
+        col = field
+    else:
+        try:
+            col = getattr(model, field)
+        except AttributeError:
+            raise AttributeError(f"Model '{model.__name__}' has no attribute '{field}'")
+
+    # тип колонки
+    col_type = col.property.columns[0].type
+    is_string = isinstance(col_type, (String, Text))
+    is_datetime = isinstance(col_type, DateTime)
+
+    # Строка для LIKE
+    if is_string and partial_match and isinstance(value, str):
+        return col.like(f"%{value}%")
+
+    # Частичный поиск по дате
+    if is_datetime and partial_match:
+        if isinstance(value, str):
+            try:
+                value_dt = dateutil.parser.parse(value)
+            except (ValueError, TypeError):
+                # Если ошибка, не преобразуем к datetime
+                return col == value
+        elif isinstance(value, datetime):
+            value_dt = value
+        else:
+            raise TypeError(f"Unsupported type for datetime partial match: {type(value)}")
+        # Сравнение только по дате без учёта времени
+        return func.date(col) == value_dt.date()
+
+    # Строгое сравнение
+    return col == value
 
 
 def get_all_records(db: Session, model: Type[T]) -> List[T]:
@@ -85,53 +143,61 @@ def get_records_range(
     return db.execute(stmt).scalars().all()
 
 
-def find_records(
-        db: Session,
-        model: Type[T],
-        filter_field: Union[str, InstrumentedAttribute],
-        filter_value: Any,
-        *,
-        partial_match: bool = False
-) -> List[T]:
+def find_one_record(
+    db: Session,
+    model: Type[T],
+    conditions: Dict[Union[str, InstrumentedAttribute], Any],
+    *,
+    partial_match: bool = False
+) -> Optional[T]:
     """
-    Найти записи в таблице по заданному условию.
-
-    Для **строковых** полей (String, Text) можно выполнить частичный поиск.
-    Для всех остальных типов — точное совпадение.
+    Найти строго одну запись по набору условий (AND).
+    Если ни одной — None, если > 1 — исключение MultipleResultsFound.
 
     :param db: Сессия SQLAlchemy.
-    :param model: ORM-модель поиска.
-    :param filter_field: Имя или атрибут поля.
-    :param filter_value: Значение для фильтрации.
-    :param partial_match:
-        - True: для строковых полей частичный поиск.
-        - False: всегда точное совпадение.
-    :return: Список объектов модели, удовлетворяющих условию.
-    :raises AttributeError: В модели нет такого поля.
+    :param model: ORM-класс.
+    :param conditions: Словарь {поле: значение, …}.
+    :param partial_match: Строковые поля искать LIKE '%value%' вместо =.
+    :return: Экземпляр модели или None.
+    :raises MultipleResultsFound: Найдено больше одной записи.
     """
-    # 1. Разрешаем строку в InstrumentedAttribute
-    if isinstance(filter_field, InstrumentedAttribute):
-        column_attr = filter_field
+    if not conditions:
+        raise ValueError("At least one condition must be provided")
+
+    conds = [
+        _build_condition(model, fld, val, partial_match)
+        for fld, val in conditions.items()
+    ]
+    stmt = select(model).where(and_(*conds))
+    return db.execute(stmt).scalars().one_or_none()
+
+
+def find_records(
+    db: Session,
+    model: Type[T],
+    conditions: Dict[Union[str, InstrumentedAttribute], Any],
+    *,
+    partial_match: bool = False
+) -> List[T]:
+    """
+    Найти список записей по набору условий (AND).
+
+    :param db: Сессия SQLAlchemy.
+    :param model: ORM-класс.
+    :param conditions: Словарь {поле: значение, …}.
+    :param partial_match: Строковые поля искать LIKE '%value%' вместо =.
+    :return: Список экземпляров модели.
+    """
+    # если нет условий — вернуть всё
+    if not conditions:
+        stmt = select(model)
     else:
-        try:
-            column_attr = getattr(model, filter_field)
-        except AttributeError:
-            raise AttributeError(f"Model '{model.__name__}' has no attribute '{filter_field}'")
+        conds = [
+            _build_condition(model, fld, val, partial_match)
+            for fld, val in conditions.items()
+        ]
+        stmt = select(model).where(and_(*conds))
 
-    # 2. Решаем, какой оператор использовать
-    col_type = getattr(column_attr.property.columns[0], "type", None)
-    is_string = isinstance(col_type, (String, Text))
-
-    if partial_match and is_string and isinstance(filter_value, str):
-        # Частичный поиск для строковых колонок
-        condition = column_attr.like(f"%{filter_value}%")
-
-    else:
-        # Точное совпадение для остальных случаев
-        condition = column_attr == filter_value
-
-    # 3. Собираем и выполняем запрос
-    stmt = select(model).where(condition)
     return db.execute(stmt).scalars().all()
 
 

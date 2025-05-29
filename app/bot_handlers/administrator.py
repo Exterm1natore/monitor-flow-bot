@@ -277,7 +277,7 @@ def find_data_callback(bot: Bot, event: Event, is_init: bool = False,
 
     try:
         with db.get_db_session() as session:
-            records = db.crud.find_records(session, model, field, field_val, partial_match=True)
+            records = db.crud.find_records(session, model, {field: field_val}, partial_match=True)
             output_text, markup = generate_db_records_page(records, len(records), config, callback, 'pg')
 
     except AttributeError:

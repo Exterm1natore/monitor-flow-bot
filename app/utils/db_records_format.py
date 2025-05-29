@@ -45,7 +45,6 @@ MODEL_FORMATS: List[ModelFormatConfig] = [
     (
         db.Administrator,
         [
-            db.Administrator.user_id,
             (db.Administrator.user, [(db.User.chat, [db.Chat.email]), db.User.first_name, db.User.last_name]),
             db.Administrator.granted_by,
             db.Administrator.granted_at
@@ -159,7 +158,7 @@ def format_for_chat(
         # вывод обычных полей в заданном порядке
         for field in flat_fields:
             # пропускаем foreign_key_id, если есть nested для этой связи
-            if field.endswith("_id") and field[:-3] in nested_fields:
+            if not model_fields and field.endswith("_id") and field[:-3] in nested_fields:
                 continue
             val = getattr(obj, field, None)
             # Если datetime, форматируем в строку

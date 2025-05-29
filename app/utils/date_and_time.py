@@ -42,7 +42,7 @@ def format_datetime(
     *,
     tz: str = "Europe/Moscow",
     fmt: str = "%Y-%m-%d %H:%M:%S",
-    to_local: bool = True,
+    to_local: bool = False,
     parse_string: bool = True
 ) -> str:
     """

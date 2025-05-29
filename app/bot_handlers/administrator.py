@@ -1,6 +1,7 @@
 from typing import Optional
 import html
 from bot.bot import Bot, Event, EventType
+from bot.constant import ChatType
 from bot.types import InlineKeyboardMarkup, KeyboardButton
 from app.utils import db_records_format, date_and_time
 from app import db
@@ -12,7 +13,8 @@ from .helpers import (
 )
 from .constants import (
     Commands, CallbackAction, GET_DATA_REFERENCE, DEL_CHAT_REFERENCE, FIND_DATA_REFERENCE,
-    ADD_NOTIFY_SUBSCRIBER_REFERENCE, DEL_NOTIFY_SUBSCRIBER_REFERENCE
+    ADD_NOTIFY_SUBSCRIBER_REFERENCE, DEL_NOTIFY_SUBSCRIBER_REFERENCE, ADD_ADMIN_REFERENCE,
+    DEL_ADMIN_REFERENCE
 )
 from app.utils import text_format
 from app.core import bot_extensions
@@ -366,12 +368,13 @@ def add_notify_subscriber_command(bot: Bot, event: Event):
 
             if is_correct:
                 # Сообщить администраторам о новом подписчике на уведомления
-                admin_notify_text = f"Чат с email = '{chat_email}' был подписан на уведомления типа '{notify_type_type}'."
+                admin_notify_text = (f"Чат с email = '{chat_email}' был подписан на уведомления типа '{notify_type_type}' "
+                                     f"(пользователем: {html.escape(event.from_chat)}).")
                 notifications.send_notification_to_administrators(bot, admin_notify_text)
 
                 # Сообщить в подписавшийся чат о подписке
                 bot_extensions.send_text_or_raise(
-                    bot, chat.email, f"📩 Система: Вы подписаны на уведомления типа "
+                    bot, chat_email, f"📩 Система: Вы подписаны на уведомления типа "
                                      f"'<i>{html.escape(notify_type_type)}</i>'",
                     parse_mode='HTML'
                 )
@@ -451,12 +454,13 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
 
             if is_correct:
                 # Сообщить администраторам об отписке чата от уведомлений
-                admin_notify_text = f"Чат с email = '{chat_email}' был отписан от уведомлений типа '{notify_type_type}'."
+                admin_notify_text = (f"Чат с email = '{chat_email}' был отписан от уведомлений типа '{notify_type_type}' "
+                                     f"(пользователем: {html.escape(event.from_chat)}).")
                 notifications.send_notification_to_administrators(bot, admin_notify_text)
 
                 # Сообщить в отписавшийся чат об отписке
                 bot_extensions.send_text_or_raise(
-                    bot, chat.email, f"📩 Система: Вы отписаны от уведомлений типа "
+                    bot, chat_email, f"📩 Система: Вы отписаны от уведомлений типа "
                                      f"'<i>{html.escape(notify_type_type)}</i>'",
                     parse_mode='HTML'
                 )
@@ -631,7 +635,15 @@ def del_chat_command(bot: Bot, event: Event):
     # Если 1 аргумент в команде
     if len(text_items) == 2:
         with db.get_db_session() as session:
-            result = db.crud.delete_chat_by_data(session, text_items[1])
+            chat = db.crud.find_chat(session, text_items[1])
+
+            result = False
+            if chat is not None:
+                _, model_field, _ = db_records_format.find_config_model_format(db.get_tablename_by_model(db.Chat))
+                admin_text = (f"Чат удалён (пользователем: {html.escape(event.from_chat)}):\n"
+                              f"{db_records_format.format_for_chat(chat, model_fields=model_field)}")
+                chat_email = chat.email
+                result = db.crud.delete_chat(session, chat)
 
         if result:
             output_text = f"✅ Чат c email = '{html.escape(text_items[1])}' успешно удалён из базы данных."
@@ -641,6 +653,15 @@ def del_chat_command(bot: Bot, event: Event):
         bot_extensions.send_text_or_raise(
             bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
         )
+
+        if result:
+            # Сообщить администраторам
+            notifications.send_notification_to_administrators(bot, admin_text)
+
+            # Сообщить в чат изменённого объекта
+            bot_extensions.send_text_or_raise(
+                bot, chat_email, f"📩 Система: Вы больше не зарегистрированы в системе."
+            )
         return
 
     # В остальных случаях выводим, что формат команды неверный

@@ -1,3 +1,4 @@
+from typing import Optional
 import html
 from bot.bot import Bot, Event, EventType
 from bot.types import InlineKeyboardMarkup, KeyboardButton
@@ -332,7 +333,14 @@ def add_notify_subscriber_command(bot: Bot, event: Event):
             with db.get_db_session() as session:
                 chat = db.crud.find_chat(session, text_items[1])
                 notify_type = db.crud.find_notification_type(session, text_items[2])
-                subscriber = db.crud.find_notifications_subscriber_by_chat(session, chat, notify_type)
+                subscriber: Optional[db.NotificationSubscriber] = db.crud.find_one_record(
+                    session,
+                    db.NotificationSubscriber,
+                    {
+                        db.NotificationSubscriber.chat_id: chat.id,
+                        db.NotificationSubscriber.notification_type: notify_type.id
+                    }
+                ) if chat is not None and notify_type is not None else None
 
                 is_correct = False
                 if chat is None:
@@ -413,7 +421,13 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
             with db.get_db_session() as session:
                 chat = db.crud.find_chat(session, text_items[1])
                 notify_type = db.crud.find_notification_type(session, text_items[2])
-                subscriber = db.crud.find_notifications_subscriber_by_chat(session, chat, notify_type)
+                subscriber: Optional[db.NotificationSubscriber] = db.crud.find_one_record(
+                    session, db.NotificationSubscriber,
+                    {
+                        db.NotificationSubscriber.chat_id: chat.id,
+                        db.NotificationSubscriber.notification_type: notify_type.id
+                    }
+                ) if chat is not None and notify_type is not None else None
 
                 is_correct = False
                 if chat is None:
@@ -423,7 +437,7 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
                 elif not subscriber:
                     output_text = "✅ Чат не подписан на выбранный тип уведомлений.\n"
                 else:
-                    db.crud.delete_notification_subscriber_by_data(session, chat, notify_type)
+                    db.crud.delete_notifications_subscriber(session, subscriber)
                     output_text = (f"✅ Чат c email = '<i>{html.escape(chat.email)}</i>' "
                                    f"успешно отписан от уведомлений типа '<i>{html.escape(notify_type.type)}</i>'.\n")
                     is_correct = True

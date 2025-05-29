@@ -49,7 +49,7 @@ def administrator_access(func):
                 with db.get_db_session() as session:
                     chat = db.crud.find_chat(session, event.from_chat)
                     user = chat.user if chat is not None else None
-                    is_admin = db.crud.is_user_administrator(session, user) \
+                    is_admin = user.administrator is not None \
                         if user is not None else False
 
                 # Если чат не существует или пользователь не является администратором

@@ -127,12 +127,12 @@ def delete_user_registration(bot: Bot, event: Event):
         chat = db.crud.find_chat(session, event.from_chat)
 
         # Если не приватный тип чата
-        if chat is not None and chat.chat_type_model.type != ChatType.PRIVATE.value:
+        if chat and chat.chat_type_model.type != ChatType.PRIVATE.value:
             raise TypeError("❌ Attempting to remove a user whose chat type is not private.\n\n"
                             f"- from_chat: {str(event.from_chat)}")
 
         # Если пользователь существует, то удаляем
-        user = db.crud.find_user_by_chat(session, chat)
+        user = chat.user if chat else None
         if user is not None:
             db.crud.delete_user(session, user, True)
 
@@ -166,7 +166,7 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
             register_user(bot, event)
             chat = db.crud.find_chat(session, event.from_chat)
 
-        is_admin = db.crud.is_user_administrator(session, chat.user)
+        is_admin = chat.user.administrator is not None
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 
         is_subscribe = False

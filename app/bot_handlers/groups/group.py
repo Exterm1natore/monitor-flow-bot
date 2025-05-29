@@ -102,12 +102,12 @@ def delete_group_registration(bot: Bot, event: Event):
         chat = db.crud.find_chat(session, event.from_chat)
 
         # Если приватный тип чата
-        if chat is not None and chat.chat_type_model.type == ChatType.PRIVATE.value:
+        if chat and chat.chat_type_model.type == ChatType.PRIVATE.value:
             raise TypeError("❌ Attempting to remove a group whose chat type is private.\n\n"
                             f"- from_chat: {str(event.from_chat)}")
 
         # Если группа существует, то удаляем
-        group = db.crud.find_group_by_chat(session, chat)
+        group = chat.group if chat else None
         if group is not None:
             db.crud.delete_group(session, group, True)
 

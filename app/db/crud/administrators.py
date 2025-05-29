@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
 from typing import Optional
+from sqlalchemy.orm import Session
 from datetime import datetime
 from app.db.models import Administrator, User
 
@@ -24,35 +24,7 @@ def create_administrator(db: Session, user: User, authorizer_id: str, granted_at
     return admin
 
 
-def find_administrator_by_user(db: Session, user: Optional[User]) -> Optional[Administrator]:
-    """
-    Получить запись администратора по объекту пользователя.
-
-    :param db: Сессия базы данных.
-    :param user: Объект пользователя.
-    :return: Объект Administrator или None.
-    """
-    if user is None:
-        return None
-
-    return db.query(Administrator).filter_by(user_id=user.id).one_or_none()
-
-
-def is_user_administrator(db: Session, user: User) -> bool:
-    """
-    Проверить, является ли пользователь администратором.
-
-    :param db: Сессия базы данных.
-    :param user: Объект пользователя.
-    :return: True, если администратор, иначе False.
-    """
-    if user is None:
-        raise TypeError("❌ The user object has not been transferred.")
-
-    return db.query(db.query(Administrator).filter_by(user_id=user.id).exists()).scalar()
-
-
-def delete_administrator(db: Session, admin: Administrator) -> bool:
+def delete_administrator(db: Session, admin: Optional[Administrator]) -> bool:
     """
     Удалить запись администратора по основному объекту.
 
@@ -66,15 +38,3 @@ def delete_administrator(db: Session, admin: Administrator) -> bool:
     db.delete(admin)
     db.commit()
     return True
-
-
-def delete_administrator_by_user(db: Session, user: User) -> bool:
-    """
-    Удалить запись администратора по данным пользователя.
-
-    :param db: Сессия базы данных.
-    :param user: Пользователь.
-    :return: True, если запись была удалена, False если запись не найдена.
-    """
-    admin = find_administrator_by_user(db, user)
-    return delete_administrator(db, admin)

@@ -105,5 +105,13 @@ def add_admin_commands_to_bot(bot: Bot):
     ))
 
     bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.ADD_ADMIN.value, filters=private_filter, callback=bot_handlers.add_admin_command
+    ))
+
+    bot.dispatcher.add_handler(CommandHandler(
+        command=bot_handlers.Commands.DEL_ADMIN.value, filters=private_filter, callback=bot_handlers.del_admin_command
+    ))
+
+    bot.dispatcher.add_handler(CommandHandler(
         command=bot_handlers.Commands.DEL_CHAT.value, filters=private_filter, callback=bot_handlers.del_chat_command
     ))

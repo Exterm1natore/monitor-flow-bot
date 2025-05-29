@@ -468,6 +468,143 @@ def del_notify_subscriber_command(bot: Bot, event: Event):
 
 @catch_and_log_exceptions
 @administrator_access
+def add_admin_command(bot: Bot, event: Event):
+    """
+    Обработать команду add_admin.
+    Функция добавлять нового администратора в базу данных, если он ещё не администратор.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    text_items = text_format.normalize_whitespace(event.text).split()
+    if not text_items:
+        output_text = "⛔️ Команда добавления администратора не распознана."
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
+        return
+
+    # Если нет аргументов в команде
+    if len(text_items) == 1:
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, text=ADD_ADMIN_REFERENCE, parse_mode='HTML'
+        )
+        return
+
+    # Если 1 аргумент в команде
+    if len(text_items) == 2:
+        with db.get_db_session() as session:
+            chat = db.crud.find_chat(session, text_items[1])
+
+            is_correct = False
+            # Если чат не найден
+            if chat is None:
+                output_text = "⛔️ Чат с таким email не был найден в базе данных."
+            # Если чат не пользователь
+            elif chat.user is None:
+                output_text = ("⛔️ Чат с таким email не принадлежит пользователю.\n\n"
+                               f"❗️ Администратором можно сделать только чат типа '{html.escape(ChatType.PRIVATE.value)}'.")
+            # Если пользователь уже админ
+            elif chat.user.administrator is not None:
+                output_text = f"✅ Чат c email = '{html.escape(text_items[1])}' уже является администратором."
+            # Добавляем нового администратора
+            else:
+                admin = db.crud.create_administrator(session, chat.user, event.from_chat, date_and_time.get_current_date_moscow())
+                output_text = f"✅ Чат c email = '{html.escape(text_items[1])}' успешно сделан администратором."
+                is_correct = True
+                chat_email = chat.email
+                _, model_field, _ = db_records_format.find_config_model_format(db.get_tablename_by_model(db.Administrator))
+                admin_text = (f"Добавлен новый администратор (пользователем: {html.escape(event.from_chat)}):\n"
+                              f"{db_records_format.format_for_chat(admin, model_fields=model_field)}")
+
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text
+        )
+
+        if is_correct:
+            # Сообщить администраторам о добавлении администратора
+            notifications.send_notification_to_administrators(bot, admin_text)
+
+            # Сообщить в чат нового администратора
+            bot_extensions.send_text_or_raise(
+                bot, chat_email, f"📩 Система: Вы стали администратором."
+            )
+        return
+
+    # В остальных случаях выводим, что формат команды неверный
+    send_invalid_command_format(bot, event.from_chat, Commands.ADD_ADMIN.value, event.msgId)
+
+
+@catch_and_log_exceptions
+@administrator_access
+def del_admin_command(bot: Bot, event: Event):
+    """
+    Обработать команду del_admin.
+    Функция отзывает доступ администратора у пользователя.
+
+    :param bot: VKTeams bot.
+    :param event: Событие.
+    """
+    text_items = text_format.normalize_whitespace(event.text).split()
+    if not text_items:
+        output_text = "⛔️ Команда удаления администратора не распознана."
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text, reply_msg_id=event.msgId, parse_mode='HTML'
+        )
+        return
+
+    # Если нет аргументов в команде
+    if len(text_items) == 1:
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, text=DEL_ADMIN_REFERENCE, parse_mode='HTML'
+        )
+        return
+
+    # Если 1 аргумент в команде
+    if len(text_items) == 2:
+        with db.get_db_session() as session:
+            chat = db.crud.find_chat(session, text_items[1])
+
+            is_correct = False
+            # Если чат не найден
+            if chat is None:
+                output_text = "⛔️ Чат с таким email не был найден в базе данных."
+            # Если попытка удалить самого себя
+            elif chat.email == event.from_chat:
+                output_text = f"⛔️ Нельзя у самого себя отозвать доступ администратора."
+            # Если чат не пользователь или не администратор
+            elif chat.user is None or chat.user.administrator is None:
+                output_text = "✅ Чат с таким email не является администратором."
+            # Добавляем нового администратора
+            else:
+                admin = chat.user.administrator
+                _, model_field, _ = db_records_format.find_config_model_format(db.get_tablename_by_model(db.Administrator))
+                admin_text = (f"Отозван доступ администратора (пользователем: {html.escape(event.from_chat)}):\n"
+                              f"{db_records_format.format_for_chat(admin, model_fields=model_field)}")
+                chat_email = chat.email
+                is_correct = db.crud.delete_administrator(session, admin)
+                output_text = f"✅ У чата c email = '{html.escape(text_items[1])}' успешно отозван доступ администратора."
+
+        bot_extensions.send_text_or_raise(
+            bot, event.from_chat, output_text
+        )
+
+        if is_correct:
+            # Сообщить администраторам о добавлении администратора
+            notifications.send_notification_to_administrators(bot, admin_text)
+
+            # Сообщить в чат нового администратора
+            bot_extensions.send_text_or_raise(
+                bot, chat_email, f"📩 Система: Вы больше не администратор."
+            )
+        return
+
+    # В остальных случаях выводим, что формат команды неверный
+    send_invalid_command_format(bot, event.from_chat, Commands.DEL_ADMIN.value, event.msgId)
+
+
+@catch_and_log_exceptions
+@administrator_access
 def del_chat_command(bot: Bot, event: Event):
     """
     Обработать команду del_chat.

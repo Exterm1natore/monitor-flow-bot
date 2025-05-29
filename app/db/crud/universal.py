@@ -157,7 +157,7 @@ def find_one_record(
     :param db: Сессия SQLAlchemy.
     :param model: ORM-класс.
     :param conditions: Словарь {поле: значение, …}.
-    :param partial_match: Строковые поля искать LIKE '%value%' вместо =.
+    :param partial_match: Включить частичный поиск по значению.
     :return: Экземпляр модели или None.
     :raises MultipleResultsFound: Найдено больше одной записи.
     """
@@ -185,7 +185,7 @@ def find_records(
     :param db: Сессия SQLAlchemy.
     :param model: ORM-класс.
     :param conditions: Словарь {поле: значение, …}.
-    :param partial_match: Строковые поля искать LIKE '%value%' вместо =.
+    :param partial_match: Включить частичный поиск по значению.
     :return: Список экземпляров модели.
     """
     # если нет условий — вернуть всё

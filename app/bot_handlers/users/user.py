@@ -87,7 +87,7 @@ def register_user(bot: Bot, event: Event):
             output_text = "⚠️ Вы уже зарегистрированы в системе бота, повторная регистрация не требуется."
         else:
             first_name: str = event.data['from']['firstName']
-            last_name: Optional[str] = event.data['from']['lastName'] if event.data['from']['lastName'] else None
+            last_name: Optional[str] = event.data['from'].get('lastName') or None
 
             user = db.crud.create_user(session, chat, first_name, last_name)
 
@@ -166,7 +166,7 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
 
         if chat is None or chat.user is None:
             register_user(bot, event)
-            chat = db.crud.find_chat(session, event.from_chat)
+            session.refresh(chat)
 
         is_admin = chat.user.administrator is not None
         notification_type = db.crud.find_notification_type(session, notification_type_name)

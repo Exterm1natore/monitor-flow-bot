@@ -139,7 +139,7 @@ def group_subscribe_notifications(bot: Bot, event: Event, notification_type_name
 
         if chat is None or chat.group is None:
             register_group(bot, event)
-            chat = db.crud.find_chat(session, event.from_chat)
+            session.refresh(chat)
 
         notification_type = db.crud.find_notification_type(session, notification_type_name)
 

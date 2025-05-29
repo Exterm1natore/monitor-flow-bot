@@ -54,7 +54,7 @@ DB_PATH = os.environ["DB_PATH"]
 
 # --------------------------------------- Данные запуска uvicorn сервера FastAPI -------------------
 
-ENDPOINT_ZABBIX_WEBHOOKS = os.environ["ENDPOINT_ZABBIX_WEBHOOKS"]
+WEBHOOK_EVENT_ENDPOINT = os.environ["WEBHOOK_EVENT_ENDPOINT"]
 
 API_HOST = os.environ["API_HOST"]
 

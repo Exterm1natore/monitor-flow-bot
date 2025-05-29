@@ -82,6 +82,13 @@ def administrator_access(func):
 
                     raise PermissionError(error_text)
         except PermissionError as permission_error:
+            # Если кнопка и приватный чат
+            if event.type == EventType.CALLBACK_QUERY and event.chat_type == ChatType.PRIVATE.value:
+                bot.answer_callback_query(query_id=event.queryId, text="Request successful", show_alert=False)
+                bot_extensions.edit_text_or_raise(
+                    bot, event.from_chat, event.msgId, event.data['message'].get('text', "Скрыто..."),
+                    inline_keyboard_markup=None
+                )
             bot_extensions.send_text_or_raise(
                 bot, event.from_chat, str(permission_error), reply_msg_id=event.msgId, parse_mode='HTML'
             )
@@ -139,7 +146,7 @@ def catch_and_log_exceptions(func):
             if bot and event:
                 exception_text = "❌ Произошла непредвиденная ошибка."
                 # Если кнопка
-                if event.type == EventType.CALLBACK_QUERY.value:
+                if event.type == EventType.CALLBACK_QUERY:
                     try:
                         bot_extensions.edit_text_or_raise(
                             bot=bot,

@@ -10,7 +10,15 @@ router = APIRouter()
 
 @router.post(f"{ENDPOINT_ZABBIX_WEBHOOKS}")
 async def handle_webhook(request: Request):
+    """
+    Принять webhook на заданную конечную точку,
+    отформатировать тело запроса и отправить
+    всем подписчикам уведомлений типа, относящегося к Zabbix.
+    Webhook-и должны приходить от системы мониторинга Zabbix.
+    Тело запроса должно содержать данные события, отправленные Zabbix.
 
+    :param request: Запрос от Zabbix.
+    """
     data: Dict = await request.json()
 
     notification_text = f"❗️Уведомление от Zabbix:\n\n{json_format.format_json_to_str(data)}"

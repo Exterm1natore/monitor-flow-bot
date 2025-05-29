@@ -10,6 +10,9 @@ from . import environment
 _executor_instance: Optional[ThreadPoolExecutor] = None
 _lock = Lock()
 
+# --- Лимит на выделение количества потоков
+HARD_CAP = 64
+
 
 def get_max_workers(default: int = 15) -> int:
     """
@@ -21,10 +24,9 @@ def get_max_workers(default: int = 15) -> int:
     try:
         cpu_limit = int(environment.EXECUTOR_CPU_LIMIT)
         scaling_factor = float(environment.EXECUTOR_SCALING_FACTOR)
-        hard_cap = int(environment.EXECUTOR_MAX_HARD_CAP)
 
         workers = int(cpu_limit * scaling_factor)
-        return min(workers, hard_cap)
+        return min(workers, HARD_CAP)
 
     except Exception as e:
         logging.getLogger(__name__).warning(

@@ -80,7 +80,7 @@ def test_format_primitive():
     assert format_for_chat(42) == "42"
     assert format_for_chat("hello") == "hello"
 
--b
+
 # --- Тесты find_config_model_format ---
 def test_find_config_model_format_found():
     MODEL_FORMATS.append((Chat, [Chat.id, Chat.email], 10))

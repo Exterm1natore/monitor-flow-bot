@@ -76,7 +76,8 @@ python main.py
   - `python-dateutil`, `pytz` — работа с временными зонами и форматами дат;
   - `pytest` — тестирование и настройка окружения;
   - `ratelimiter`, `tenacity` — контроль частоты запросов и повторные попытки при ошибках;
-  - `pybreaker` — реализация Circuit Breaker.
+  - `pybreaker` — реализация Circuit Breaker;
+  - `requests` - обработка HTTP-запросов.
 
 ---
 

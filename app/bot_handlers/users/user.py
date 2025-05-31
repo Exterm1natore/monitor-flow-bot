@@ -35,8 +35,8 @@ def send_help_user(bot: Bot, event: Event, initial_text: str = ""):
     output_text += (
         f"🔹 /{Commands.START.value} - возобновить отправку сообщений ботом и приветственное сообщение;\n"
         f"🔹 /{Commands.STOP.value} - запрет отправки сообщений ботом и удаление регистрации;\n"
-        "(<b>Важно:</b> отправляя эту команду, бот больше не сможет вам ничего написать."
-        f"Для того, чтобы бот смог возобновить отправку сообщений, необходимо отправить <i>/{Commands.START.value}</i>)."
+        f"(<b>Важно:</b> отправляя команду /{Commands.STOP.value} , бот больше не сможет вам ничего написать.\n"
+        f"Для того, чтобы бот смог возобновить отправку сообщений, необходимо отправить /{Commands.START.value} )."
     )
 
     with db.get_db_session() as session:
@@ -222,7 +222,7 @@ def user_unsubscribe_notifications(bot: Bot, event: Event, notification_type_nam
     with db.get_db_session() as session:
         chat = db.crud.find_chat(session, event.from_chat)
 
-        if chat is None:
+        if chat is None or chat.user is None:
             send_not_found_chat(bot, event.from_chat, event.chat_type)
             return
 

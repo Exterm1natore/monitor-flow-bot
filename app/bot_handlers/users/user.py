@@ -165,8 +165,8 @@ def user_subscribe_notifications(bot: Bot, event: Event, notification_type_name:
         chat = db.crud.find_chat(session, event.from_chat)
 
         if chat is None or chat.user is None:
-            register_user(bot, event)
-            session.refresh(chat)
+            send_not_found_chat(bot, event.from_chat, event.chat_type)
+            return
 
         is_admin = chat.user.administrator is not None
         notification_type = db.crud.find_notification_type(session, notification_type_name)

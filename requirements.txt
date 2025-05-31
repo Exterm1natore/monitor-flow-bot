@@ -1,0 +1,12 @@
+alembic==1.7.7
+fastapi==0.83.0
+mailru-im-bot==0.0.21
+pybreaker==0.8.0
+pytest==7.0.1
+python-dateutil==2.9.0.post0
+python-dotenv==0.20.0
+pytz==2025.2
+ratelimiter==1.2.0.post0
+SQLAlchemy==1.4.54
+tenacity==8.2.2
+uvicorn==0.16.0
